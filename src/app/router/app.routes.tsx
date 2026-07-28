@@ -1,63 +1,69 @@
-import type { RouteObject } from "react-router-dom";
-import { Navigate } from "react-router-dom";
+import { Navigate, type RouteObject } from 'react-router-dom'
 
-import { AppLayout } from "@/app/layouts/AppLayout";
-import { AuthLayout } from "@/app/layouts/AuthLayout";
-
-import { ForgotPasswordPage } from "@/features/auth/pages/ForgotPasswordPage";
-import { LoginPage } from "@/features/auth/pages/LoginPage";
-import { RegisterPage } from "@/features/auth/pages/RegisterPage";
-
-import { ChatPage } from "@/features/messaging/chat/pages/ChatPage";
-
-import { SettingsPage } from "@/features/settings/pages/SettingsPage";
-
-import { ProfilePage } from "@/features/users/pages/ProfilePage";
-
-import { HomePage } from "@/features/workspaces/pages/HomePage";
+import { AppLayout } from '@/app/layouts/AppLayout'
+import { AuthLayout } from '@/app/layouts/AuthLayout'
+import { ProtectedRoute } from '@/features/auth/guards/ProtectedRoute'
+import { PublicRoute } from '@/features/auth/guards/PublicRoute'
+import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage'
+import { LoginPage } from '@/features/auth/pages/LoginPage'
+import { RegisterPage } from '@/features/auth/pages/RegisterPage'
+import { ChatPage } from '@/features/messaging/chat/pages/ChatPage'
+import { SettingsPage } from '@/features/settings/pages/SettingsPage'
+import { ProfilePage } from '@/features/users/pages/ProfilePage'
+import { HomePage } from '@/features/workspaces/pages/HomePage'
 
 export const routes: RouteObject[] = [
   {
-    path: "/",
+    path: '/',
     element: <Navigate to="/app" replace />,
   },
   {
-    element: <AuthLayout />,
+    element: <PublicRoute />,
     children: [
       {
-        path: "/login",
-        element: <LoginPage />,
-      },
-      {
-        path: "/register",
-        element: <RegisterPage />,
-      },
-      {
-        path: "/forgot-password",
-        element: <ForgotPasswordPage />,
+        element: <AuthLayout />,
+        children: [
+          {
+            path: '/login',
+            element: <LoginPage />,
+          },
+          {
+            path: '/register',
+            element: <RegisterPage />,
+          },
+          {
+            path: '/forgot-password',
+            element: <ForgotPasswordPage />,
+          },
+        ],
       },
     ],
   },
   {
-    path: "/app",
-    element: <AppLayout />,
+    element: <ProtectedRoute />,
     children: [
       {
-        index: true,
-        element: <HomePage />,
-      },
-      {
-        path: "chat",
-        element: <ChatPage />,
-      },
-      {
-        path: "profile",
-        element: <ProfilePage />,
-      },
-      {
-        path: "settings",
-        element: <SettingsPage />,
+        path: '/app',
+        element: <AppLayout />,
+        children: [
+          {
+            index: true,
+            element: <HomePage />,
+          },
+          {
+            path: 'chat',
+            element: <ChatPage />,
+          },
+          {
+            path: 'profile',
+            element: <ProfilePage />,
+          },
+          {
+            path: 'settings',
+            element: <SettingsPage />,
+          },
+        ],
       },
     ],
   },
-];
+]
