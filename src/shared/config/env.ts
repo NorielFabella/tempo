@@ -20,3 +20,4 @@ function getEnv() {
 }
 
 export const env = Object.freeze(getEnv());
+

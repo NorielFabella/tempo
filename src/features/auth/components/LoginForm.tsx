@@ -7,10 +7,11 @@ import { signIn } from '@/features/auth/services/auth.service'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState, type FormEvent } from 'react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 export function LoginForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   const {
     register,
@@ -30,7 +31,8 @@ export function LoginForm() {
     const { error } = await signIn(values.email, values.password)
 
     if (error) {
-      setErrorMessage(error.message)
+        setErrorMessage(error.message)
+        return
     }
   }
 
