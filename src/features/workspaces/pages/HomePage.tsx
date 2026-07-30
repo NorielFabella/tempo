@@ -1,22 +1,74 @@
-import { useAuth } from '@/features/auth/hooks/useAuth'
+import {
+  Activity,
+  FolderKanban,
+  MessageSquare,
+  Users,
+} from 'lucide-react'
+
 import { signOut } from '@/features/auth/services/auth.service'
+import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader'
+import { QuickActions } from '@/features/dashboard/components/QuickActions'
+import { StatCard } from '@/features/dashboard/components/StatCard'
+import { useProfile } from '@/features/profile/hooks/useProfile'
+import { Button } from '@/shared/components/ui/Button'
 
 export function HomePage() {
-  const { user } = useAuth()
+  const { data: profile, isLoading } = useProfile()
+
+  if (isLoading) {
+    return <p>Loading...</p>
+  }
 
   return (
-    <div>
-      <h1>Home</h1>
+    <div className="space-y-8">
+      <DashboardHeader
+        title="Welcome back!"
+        description={`Signed in as ${profile?.email ?? 'Unknown user'}`}
+        actions={
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void signOut()
+            }}
+          >
+            Sign Out
+          </Button>
+        }
+      />
 
-      <p>{user?.email}</p>
+      <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Projects"
+          value="12"
+          icon={<FolderKanban className="h-8 w-8" />}
+        />
 
-      <button
-        onClick={() => {
-          void signOut()
-        }}
-      >
-        Sign Out
-      </button>
+        <StatCard
+          title="Messages"
+          value="84"
+          icon={<MessageSquare className="h-8 w-8" />}
+        />
+
+        <StatCard
+          title="Team Members"
+          value="8"
+          icon={<Users className="h-8 w-8" />}
+        />
+
+        <StatCard
+          title="Activity"
+          value="23"
+          icon={<Activity className="h-8 w-8" />}
+        />
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold">
+          Quick Actions
+        </h2>
+
+        <QuickActions />
+      </section>
     </div>
   )
 }

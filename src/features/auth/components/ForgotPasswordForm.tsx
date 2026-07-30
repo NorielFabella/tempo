@@ -3,6 +3,8 @@ import {
   type ForgotPasswordFormValues,
 } from '@/features/auth/schemas/forgotPasswordSchema'
 import { resetPassword } from '@/features/auth/services/auth.service'
+import { Button } from '@/shared/components/ui/Button'
+import { Input } from '@/shared/components/ui/Input'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState, type FormEventHandler } from 'react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
@@ -54,12 +56,11 @@ export function ForgotPasswordForm() {
           Email
         </label>
 
-        <input
+        <Input
           id="email"
           type="email"
           autoComplete="email"
           {...register('email')}
-          style={{ width: '100%', padding: '0.65rem 0.75rem' }}
         />
 
         {errors.email && (
@@ -81,13 +82,12 @@ export function ForgotPasswordForm() {
         </p>
       )}
 
-      <button
+      <Button
         type="submit"
         disabled={isSubmitting}
-        style={{ padding: '0.75rem 1rem' }}
       >
         {isSubmitting ? 'Sending...' : 'Send reset link'}
-      </button>
+      </Button>
 
       <p>
         <Link to="/login">

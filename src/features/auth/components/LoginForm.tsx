@@ -4,14 +4,15 @@ import {
   type LoginFormValues,
 } from '@/features/auth/schemas/loginSchema'
 import { signIn } from '@/features/auth/services/auth.service'
+import { Button } from '@/shared/components/ui/Button'
+import { Input } from '@/shared/components/ui/Input'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState, type FormEvent } from 'react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
 export function LoginForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const navigate = useNavigate()
 
   const {
     register,
@@ -53,15 +54,11 @@ export function LoginForm() {
           Email
         </label>
 
-        <input
+        <Input
           id="email"
           type="email"
           autoComplete="email"
           {...register('email')}
-          style={{
-            width: '100%',
-            padding: '0.65rem 0.75rem',
-          }}
         />
 
         {errors.email && (
@@ -90,15 +87,12 @@ export function LoginForm() {
         </p>
       )}
 
-      <button
+      <Button
         type="submit"
         disabled={isSubmitting}
-        style={{
-          padding: '0.75rem 1rem',
-        }}
       >
         {isSubmitting ? 'Signing in...' : 'Sign in'}
-      </button>
+      </Button>
 
       <p>
         <Link to="/forgot-password">Forgot password?</Link>

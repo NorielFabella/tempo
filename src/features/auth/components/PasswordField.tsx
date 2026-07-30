@@ -1,3 +1,4 @@
+import { Input } from '@/shared/components/ui/Input'
 import { Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import type { FieldError, UseFormRegisterReturn } from 'react-hook-form'
@@ -31,17 +32,12 @@ export function PasswordField({
       </label>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <input
+        <Input
           id={id}
           type={showPassword ? 'text' : 'password'}
           autoComplete={autoComplete}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? errorId : undefined}
+          className="flex-1"
           {...register}
-          style={{
-            flex: 1,
-            padding: '0.65rem 0.75rem',
-          }}
         />
 
         <button
