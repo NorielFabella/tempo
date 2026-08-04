@@ -39,3 +39,21 @@ export async function sendMessage(
 
   return data
 }
+
+export async function markRoomMessagesAsRead(
+  roomId: string,
+  userId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('messages')
+    .update({
+      read_at: new Date().toISOString(),
+    })
+    .eq('room_id', roomId)
+    .neq('sender_id', userId)
+    .is('read_at', null)
+
+  if (error) {
+    throw error
+  }
+}

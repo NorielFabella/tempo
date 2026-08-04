@@ -1,32 +1,50 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+import { useQueryClient } from '@tanstack/react-query'
 
 import { useAuth } from '@/features/auth/hooks/useAuth'
+import { useMarkMessagesAsRead } from '@/features/messaging/chat/hooks/useMarkMessagesAsRead'
 import { useMessages } from '@/features/messaging/chat/hooks/useMessages'
 import { useSendMessage } from '@/features/messaging/chat/hooks/useSendMessage'
+import { useTyping } from '@/features/messaging/chat/hooks/useTyping'
 import { useCreateRoom } from '@/features/messaging/rooms/hooks/useCreateRoom'
 import { useRooms } from '@/features/messaging/rooms/hooks/useRooms'
 import { Button } from '@/shared/components/ui/Button'
 import { Card } from '@/shared/components/ui/Card'
 import { Input } from '@/shared/components/ui/Input'
-import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
-
 import { supabase } from '@/shared/supabase/client'
-
-
 
 export function ChatPage() {
   const { user } = useAuth()
   const { data: rooms, isLoading } = useRooms()
   const createRoomMutation = useCreateRoom()
   const sendMessageMutation = useSendMessage()
+
+  const markMessagesAsReadMutation = useMarkMessagesAsRead()
   const queryClient = useQueryClient()
 
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
   const [roomName, setRoomName] = useState('')
   const [message, setMessage] = useState('')
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const activeRoomId = selectedRoomId ?? rooms?.[0]?.id ?? null
+
+    const {
+      data: messages,
+      isLoading: isMessagesLoading,
+    } = useMessages(activeRoomId ?? '')
+
+    const {
+      data: typingUsers,
+      setTyping: setTypingMutation,
+    } = useTyping(activeRoomId ?? '')
+
+    useEffect(() => {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: 'smooth',
+      })
+    }, [messages])
 
     useEffect(() => {
     if (!activeRoomId) {
@@ -38,7 +56,7 @@ export function ChatPage() {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `room_id=eq.${activeRoomId}`,
@@ -56,14 +74,70 @@ export function ChatPage() {
     }
   }, [activeRoomId, queryClient])
 
-  const {
-  data: messages,
-  isLoading: isMessagesLoading,
-} = useMessages(activeRoomId ?? '')
+  useEffect(() => {
+    if (!activeRoomId) {
+      return
+    }
+
+    const channel = supabase
+      .channel(`typing:${activeRoomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'typing_status',
+          filter: `room_id=eq.${activeRoomId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['typing', activeRoomId],
+          })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [activeRoomId, queryClient])
+
+  useEffect(() => {
+    if (!user || !activeRoomId || !messages?.length) {
+      return
+    }
+
+    const hasUnreadMessages = messages.some(
+      (message) =>
+        message.sender_id !== user.id &&
+        message.read_at === null,
+    )
+
+    if (!hasUnreadMessages) {
+      return
+    }
+
+    if (!markMessagesAsReadMutation.isPending) {
+      void markMessagesAsReadMutation.mutate({
+        roomId: activeRoomId,
+        userId: user.id,
+      })
+    }
+  }, [
+    activeRoomId,
+    messages,
+    user,
+    markMessagesAsReadMutation,
+  ])
 
   const selectedRoom = rooms?.find(
     (room) => room.id === activeRoomId,
   )
+
+  const otherTypingUsers =
+    (typingUsers ?? []).filter(
+      (typingUser) => typingUser.user_id !== user?.id,
+    )
 
   async function handleCreateRoom() {
 
@@ -92,6 +166,12 @@ export function ChatPage() {
       roomId: activeRoomId,
       senderId: user.id,
       content: message.trim(),
+    })
+
+    await setTypingMutation.mutateAsync({
+      roomId: activeRoomId,
+      userId: user.id,
+      isTyping: false,
     })
 
     setMessage('')
@@ -181,32 +261,79 @@ export function ChatPage() {
               Loading messages...
             </p>
           ) : messages?.length ? (
-            <div className="space-y-3">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className="rounded-lg border p-3"
-                >
-                  <p className="text-xs text-muted-foreground">
-                    {message.sender_id}
-                  </p>
+            <div className="space-y-4">
+              {messages.map((message) => {
+                const isOwnMessage =
+                  message.sender_id === user?.id
 
-                  <p className="mt-1">
-                    {message.content}
-                  </p>
+                return (
+                  <div
+                    key={message.id}
+                    className={`flex ${
+                      isOwnMessage
+                        ? 'justify-end'
+                        : 'justify-start'
+                    }`}
+                  >
+                    <div
+                      className={`max-w-[75%] rounded-2xl border px-4 py-3 ${
+                        isOwnMessage
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-card'
+                      }`}
+                    >
+                      <p
+                        className={`text-xs ${
+                          isOwnMessage
+                            ? 'text-blue-100'
+                            : 'text-muted-foreground'
+                        }`}
+                      >
+                        {message.sender_id}
+                      </p>
 
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {new Date(
-                      message.created_at,
-                    ).toLocaleString()}
-                  </p>
-                </div>
-              ))}
+                      <p className="mt-1 break-words">
+                        {message.content}
+                      </p>
+
+                      <div
+                        className={`mt-2 flex items-center gap-2 text-xs ${
+                          isOwnMessage
+                            ? 'text-blue-100'
+                            : 'text-muted-foreground'
+                        }`}
+                      >
+                        <span>
+                          {new Date(message.created_at).toLocaleTimeString([], {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
+                        </span>
+
+                        {isOwnMessage && (
+                          <span>
+                            {message.read_at ? 'Seen' : 'Sent'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              {otherTypingUsers.length > 0 && (
+                <p className="text-sm text-muted-foreground italic">
+                  Someone is typing...
+                </p>
+              )}
+
+              <div ref={messagesEndRef} />
             </div>
           ) : (
             <p className="text-center text-muted-foreground">
               No messages yet.
+
             </p>
+
           )}
         </div>
 
@@ -216,7 +343,26 @@ export function ChatPage() {
               placeholder="Type a message..."
               value={message}
               onChange={(event) => {
-                setMessage(event.target.value)
+                const value = event.target.value
+
+                setMessage(value)
+
+                if (user && activeRoomId) {
+                  void setTypingMutation.mutate({
+                    roomId: activeRoomId,
+                    userId: user.id,
+                    isTyping: value.length > 0,
+                  })
+                }
+              }}
+              onBlur={() => {
+                if (user && activeRoomId) {
+                  void setTypingMutation.mutate({
+                    roomId: activeRoomId,
+                    userId: user.id,
+                    isTyping: false,
+                  })
+                }
               }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {

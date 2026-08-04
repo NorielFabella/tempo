@@ -19,6 +19,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          read_at: string | null
           room_id: string
           sender_id: string
           updated_at: string
@@ -27,6 +28,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          read_at?: string | null
           room_id: string
           sender_id: string
           updated_at?: string
@@ -35,6 +37,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          read_at?: string | null
           room_id?: string
           sender_id?: string
           updated_at?: string
@@ -125,6 +128,35 @@ export type Database = {
           name?: string | null
         }
         Relationships: []
+      }
+      typing_status: {
+        Row: {
+          is_typing: boolean
+          room_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          is_typing?: boolean
+          room_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          is_typing?: boolean
+          room_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "typing_status_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
