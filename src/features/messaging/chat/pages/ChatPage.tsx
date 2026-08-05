@@ -27,6 +27,7 @@ export function ChatPage() {
   const [roomName, setRoomName] = useState('')
   const [message, setMessage] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const typingTimeoutRef = useRef<number | null>(null)
 
   const activeRoomId = selectedRoomId ?? rooms?.[0]?.id ?? null
 
@@ -167,6 +168,10 @@ export function ChatPage() {
       senderId: user.id,
       content: message.trim(),
     })
+
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current)
+    }
 
     await setTypingMutation.mutateAsync({
       roomId: activeRoomId,
@@ -347,15 +352,35 @@ export function ChatPage() {
 
                 setMessage(value)
 
-                if (user && activeRoomId) {
-                  void setTypingMutation.mutate({
-                    roomId: activeRoomId,
-                    userId: user.id,
-                    isTyping: value.length > 0,
-                  })
+                if (!user || !activeRoomId) {
+                  return
+                }
+
+                void setTypingMutation.mutate({
+                  roomId: activeRoomId,
+                  userId: user.id,
+                  isTyping: value.length > 0,
+                })
+
+                if (typingTimeoutRef.current) {
+                  window.clearTimeout(typingTimeoutRef.current)
+                }
+
+                if (value.length > 0) {
+                  typingTimeoutRef.current = window.setTimeout(() => {
+                    void setTypingMutation.mutate({
+                      roomId: activeRoomId,
+                      userId: user.id,
+                      isTyping: false,
+                    })
+                  }, 2000)
                 }
               }}
               onBlur={() => {
+                if (typingTimeoutRef.current) {
+                  window.clearTimeout(typingTimeoutRef.current)
+                }
+
                 if (user && activeRoomId) {
                   void setTypingMutation.mutate({
                     roomId: activeRoomId,
