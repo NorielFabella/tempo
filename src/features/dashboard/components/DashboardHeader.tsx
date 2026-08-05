@@ -14,15 +14,9 @@ export function DashboardHeader({
   return (
     <div className="mb-8 flex items-center justify-between">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          {title}
-        </h1>
+        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
 
-        {description && (
-          <p className="mt-2 text-slate-600">
-            {description}
-          </p>
-        )}
+        {description && <p className="mt-2 text-slate-600">{description}</p>}
       </div>
 
       {actions}

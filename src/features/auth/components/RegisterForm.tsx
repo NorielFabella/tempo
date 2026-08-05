@@ -42,10 +42,7 @@ export function RegisterForm() {
   }
 
   return (
-    <form
-      onSubmit={handleFormSubmit}
-      style={{ display: 'grid', gap: '1rem' }}
-    >
+    <form onSubmit={handleFormSubmit} style={{ display: 'grid', gap: '1rem' }}>
       <div>
         <label
           htmlFor="email"
@@ -84,23 +81,14 @@ export function RegisterForm() {
         error={errors.confirmPassword}
       />
 
-      {errorMessage && (
-        <p style={{ color: '#dc2626' }}>
-          {errorMessage}
-        </p>
-      )}
+      {errorMessage && <p style={{ color: '#dc2626' }}>{errorMessage}</p>}
 
-      <Button
-        type="submit"
-        disabled={isSubmitting}
-      >
+      <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Creating account...' : 'Create account'}
       </Button>
 
       <p>
-        <Link to="/login">
-          Already have an account?
-        </Link>
+        <Link to="/login">Already have an account?</Link>
       </p>
     </form>
   )

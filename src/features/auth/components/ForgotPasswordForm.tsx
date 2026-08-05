@@ -44,10 +44,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form
-      onSubmit={handleFormSubmit}
-      style={{ display: 'grid', gap: '1rem' }}
-    >
+    <form onSubmit={handleFormSubmit} style={{ display: 'grid', gap: '1rem' }}>
       <div>
         <label
           htmlFor="email"
@@ -70,29 +67,16 @@ export function ForgotPasswordForm() {
         )}
       </div>
 
-      {errorMessage && (
-        <p style={{ color: '#dc2626' }}>
-          {errorMessage}
-        </p>
-      )}
+      {errorMessage && <p style={{ color: '#dc2626' }}>{errorMessage}</p>}
 
-      {message && (
-        <p>
-          {message}
-        </p>
-      )}
+      {message && <p>{message}</p>}
 
-      <Button
-        type="submit"
-        disabled={isSubmitting}
-      >
+      <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Sending...' : 'Send reset link'}
       </Button>
 
       <p>
-        <Link to="/login">
-          Back to sign in
-        </Link>
+        <Link to="/login">Back to sign in</Link>
       </p>
     </form>
   )

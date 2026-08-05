@@ -1,4 +1,8 @@
-import { ThemeContext, type ResolvedTheme, type Theme } from '@/app/providers/themeContext'
+import {
+  ThemeContext,
+  type ResolvedTheme,
+  type Theme,
+} from '@/app/providers/themeContext'
 import { useEffect, useMemo, useState, type PropsWithChildren } from 'react'
 
 function getSystemTheme(): ResolvedTheme {
@@ -6,12 +10,16 @@ function getSystemTheme(): ResolvedTheme {
     return 'light'
   }
 
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light'
 }
 
 export function ThemeProvider({ children }: PropsWithChildren) {
   const [theme, setTheme] = useState<Theme>('system')
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => getSystemTheme())
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
+    getSystemTheme(),
+  )
 
   useEffect(() => {
     const updateTheme = () => {

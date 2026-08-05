@@ -3,10 +3,7 @@ type AuthHeaderProps = {
   description?: string
 }
 
-export function AuthHeader({
-  title,
-  description,
-}: AuthHeaderProps) {
+export function AuthHeader({ title, description }: AuthHeaderProps) {
   return (
     <header style={{ marginBottom: '1.25rem' }}>
       <h1

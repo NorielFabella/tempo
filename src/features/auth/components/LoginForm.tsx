@@ -32,8 +32,8 @@ export function LoginForm() {
     const { error } = await signIn(values.email, values.password)
 
     if (error) {
-        setErrorMessage(error.message)
-        return
+      setErrorMessage(error.message)
+      return
     }
   }
 
@@ -42,10 +42,7 @@ export function LoginForm() {
   }
 
   return (
-    <form
-      onSubmit={handleFormSubmit}
-      style={{ display: 'grid', gap: '1rem' }}
-    >
+    <form onSubmit={handleFormSubmit} style={{ display: 'grid', gap: '1rem' }}>
       <div>
         <label
           htmlFor="email"
@@ -81,16 +78,9 @@ export function LoginForm() {
         error={errors.password}
       />
 
-      {errorMessage && (
-        <p style={{ color: '#dc2626' }}>
-          {errorMessage}
-        </p>
-      )}
+      {errorMessage && <p style={{ color: '#dc2626' }}>{errorMessage}</p>}
 
-      <Button
-        type="submit"
-        disabled={isSubmitting}
-      >
+      <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Signing in...' : 'Sign in'}
       </Button>
 

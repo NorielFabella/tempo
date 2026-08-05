@@ -12,8 +12,12 @@ export function Sidebar() {
   return (
     <aside className="flex w-64 flex-col border-r border-slate-200 bg-slate-950 text-slate-100">
       <div className="border-b border-slate-800 px-6 py-5">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-400">Tempo</p>
-        <h2 className="mt-1 text-xl font-semibold text-white">Workspace shell</h2>
+        <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-400">
+          Tempo
+        </p>
+        <h2 className="mt-1 text-xl font-semibold text-white">
+          Workspace shell
+        </h2>
       </div>
 
       <nav className="flex-1 space-y-1 p-4">

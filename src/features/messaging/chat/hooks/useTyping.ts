@@ -1,9 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 
-import {
-  getTypingUsers,
-  setTypingStatus,
-} from '../services/typing.service'
+import { getTypingUsers, setTypingStatus } from '../services/typing.service'
 
 export function useTyping(roomId: string) {
   const typingUsers = useQuery({
@@ -21,12 +18,7 @@ export function useTyping(roomId: string) {
       roomId: string
       userId: string
       isTyping: boolean
-    }) =>
-      setTypingStatus(
-        roomId,
-        userId,
-        isTyping,
-      ),
+    }) => setTypingStatus(roomId, userId, isTyping),
   })
 
   return {

@@ -12,16 +12,8 @@ export function useSendMessage() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({
-      roomId,
-      senderId,
-      content,
-    }: SendMessageInput) =>
-      sendMessage(
-        roomId,
-        senderId,
-        content,
-      ),
+    mutationFn: ({ roomId, senderId, content }: SendMessageInput) =>
+      sendMessage(roomId, senderId, content),
 
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({

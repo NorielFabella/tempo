@@ -31,23 +31,21 @@ export function ChatPage() {
 
   const activeRoomId = selectedRoomId ?? rooms?.[0]?.id ?? null
 
-    const {
-      data: messages,
-      isLoading: isMessagesLoading,
-    } = useMessages(activeRoomId ?? '')
+  const { data: messages, isLoading: isMessagesLoading } = useMessages(
+    activeRoomId ?? '',
+  )
 
-    const {
-      data: typingUsers,
-      setTyping: setTypingMutation,
-    } = useTyping(activeRoomId ?? '')
+  const { data: typingUsers, setTyping: setTypingMutation } = useTyping(
+    activeRoomId ?? '',
+  )
 
-    useEffect(() => {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: 'smooth',
-      })
-    }, [messages])
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: 'smooth',
+    })
+  }, [messages])
 
-    useEffect(() => {
+  useEffect(() => {
     if (!activeRoomId) {
       return
     }
@@ -109,9 +107,7 @@ export function ChatPage() {
     }
 
     const hasUnreadMessages = messages.some(
-      (message) =>
-        message.sender_id !== user.id &&
-        message.read_at === null,
+      (message) => message.sender_id !== user.id && message.read_at === null,
     )
 
     if (!hasUnreadMessages) {
@@ -124,24 +120,15 @@ export function ChatPage() {
         userId: user.id,
       })
     }
-  }, [
-    activeRoomId,
-    messages,
-    user,
-    markMessagesAsReadMutation,
-  ])
+  }, [activeRoomId, messages, user, markMessagesAsReadMutation])
 
-  const selectedRoom = rooms?.find(
-    (room) => room.id === activeRoomId,
+  const selectedRoom = rooms?.find((room) => room.id === activeRoomId)
+
+  const otherTypingUsers = (typingUsers ?? []).filter(
+    (typingUser) => typingUser.user_id !== user?.id,
   )
 
-  const otherTypingUsers =
-    (typingUsers ?? []).filter(
-      (typingUser) => typingUser.user_id !== user?.id,
-    )
-
   async function handleCreateRoom() {
-
     if (!user || !roomName.trim()) {
       return
     }
@@ -155,11 +142,7 @@ export function ChatPage() {
   }
 
   async function handleSendMessage() {
-    if (
-      !user ||
-      !activeRoomId ||
-      !message.trim()
-    ) {
+    if (!user || !activeRoomId || !message.trim()) {
       return
     }
 
@@ -191,9 +174,7 @@ export function ChatPage() {
       {/* Rooms Sidebar */}
       <Card className="flex flex-col overflow-hidden">
         <div className="border-b p-4">
-          <h2 className="text-lg font-semibold">
-            Rooms
-          </h2>
+          <h2 className="text-lg font-semibold">Rooms</h2>
 
           <div className="mt-4 space-y-2">
             <Input
@@ -209,14 +190,9 @@ export function ChatPage() {
               onClick={() => {
                 void handleCreateRoom()
               }}
-              disabled={
-                createRoomMutation.isPending ||
-                !roomName.trim()
-              }
+              disabled={createRoomMutation.isPending || !roomName.trim()}
             >
-              {createRoomMutation.isPending
-                ? 'Creating...'
-                : 'New Room'}
+              {createRoomMutation.isPending ? 'Creating...' : 'New Room'}
             </Button>
           </div>
         </div>
@@ -235,15 +211,11 @@ export function ChatPage() {
                     : 'hover:bg-muted'
                 }`}
               >
-                <p className="font-medium">
-                  {room.name ?? 'Direct Message'}
-                </p>
+                <p className="font-medium">{room.name ?? 'Direct Message'}</p>
               </button>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No rooms found.
-            </p>
+            <p className="text-sm text-muted-foreground">No rooms found.</p>
           )}
         </div>
       </Card>
@@ -268,23 +240,18 @@ export function ChatPage() {
           ) : messages?.length ? (
             <div className="space-y-4">
               {messages.map((message) => {
-                const isOwnMessage =
-                  message.sender_id === user?.id
+                const isOwnMessage = message.sender_id === user?.id
 
                 return (
                   <div
                     key={message.id}
                     className={`flex ${
-                      isOwnMessage
-                        ? 'justify-end'
-                        : 'justify-start'
+                      isOwnMessage ? 'justify-end' : 'justify-start'
                     }`}
                   >
                     <div
                       className={`max-w-[75%] rounded-2xl border px-4 py-3 ${
-                        isOwnMessage
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-card'
+                        isOwnMessage ? 'bg-blue-600 text-white' : 'bg-card'
                       }`}
                     >
                       <p
@@ -297,9 +264,7 @@ export function ChatPage() {
                         {message.sender_id}
                       </p>
 
-                      <p className="mt-1 break-words">
-                        {message.content}
-                      </p>
+                      <p className="mt-1 break-words">{message.content}</p>
 
                       <div
                         className={`mt-2 flex items-center gap-2 text-xs ${
@@ -316,9 +281,7 @@ export function ChatPage() {
                         </span>
 
                         {isOwnMessage && (
-                          <span>
-                            {message.read_at ? 'Seen' : 'Sent'}
-                          </span>
+                          <span>{message.read_at ? 'Seen' : 'Sent'}</span>
                         )}
                       </div>
                     </div>
@@ -336,9 +299,7 @@ export function ChatPage() {
           ) : (
             <p className="text-center text-muted-foreground">
               No messages yet.
-
             </p>
-
           )}
         </div>
 
@@ -407,11 +368,8 @@ export function ChatPage() {
                 !activeRoomId
               }
             >
-              {sendMessageMutation.isPending
-                ? 'Sending...'
-                : 'Send'}
+              {sendMessageMutation.isPending ? 'Sending...' : 'Send'}
             </Button>
-
           </div>
         </div>
       </Card>

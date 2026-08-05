@@ -1,9 +1,4 @@
-import {
-  Activity,
-  FolderKanban,
-  MessageSquare,
-  Users,
-} from 'lucide-react'
+import { Activity, FolderKanban, MessageSquare, Users } from 'lucide-react'
 
 import { signOut } from '@/features/auth/services/auth.service'
 import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader'
@@ -63,9 +58,7 @@ export function HomePage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold">
-          Quick Actions
-        </h2>
+        <h2 className="text-xl font-semibold">Quick Actions</h2>
 
         <QuickActions />
       </section>

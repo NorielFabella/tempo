@@ -1,10 +1,7 @@
 import { supabase } from '@/shared/supabase/client'
 import type { Message } from '../types/message'
 
-
-export async function getRoomMessages(
-  roomId: string,
-): Promise<Message[]> {
+export async function getRoomMessages(roomId: string): Promise<Message[]> {
   const { data, error } = await supabase
     .from('messages')
     .select('*')

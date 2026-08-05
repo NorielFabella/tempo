@@ -24,10 +24,7 @@ export function PasswordField({
 
   return (
     <div>
-      <label
-        htmlFor={id}
-        style={{ display: 'block', marginBottom: '0.35rem' }}
-      >
+      <label htmlFor={id} style={{ display: 'block', marginBottom: '0.35rem' }}>
         {label}
       </label>
 

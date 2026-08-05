@@ -16,17 +16,12 @@ export async function getRooms(): Promise<Room[]> {
   return data
 }
 
-export async function createRoom(
-  name: string,
-  createdBy: string,
-) {
-  const { error } = await supabase
-    .from('rooms')
-    .insert({
-      name,
-      created_by: createdBy,
-      is_group: true,
-    })
+export async function createRoom(name: string, createdBy: string) {
+  const { error } = await supabase.from('rooms').insert({
+    name,
+    created_by: createdBy,
+    is_group: true,
+  })
 
   if (error) {
     throw error
@@ -34,5 +29,3 @@ export async function createRoom(
 
   return true
 }
-
-
