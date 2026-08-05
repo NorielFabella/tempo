@@ -22,3 +22,16 @@ export async function getCurrentProfile(): Promise<Profile> {
 
   return data
 }
+
+export async function getProfilesByIds(userIds: string[]): Promise<Profile[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', userIds)
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}

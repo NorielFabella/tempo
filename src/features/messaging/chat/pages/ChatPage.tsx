@@ -9,6 +9,7 @@ import { useSendMessage } from '@/features/messaging/chat/hooks/useSendMessage'
 import { useTyping } from '@/features/messaging/chat/hooks/useTyping'
 import { useCreateRoom } from '@/features/messaging/rooms/hooks/useCreateRoom'
 import { useRooms } from '@/features/messaging/rooms/hooks/useRooms'
+import { useProfiles } from '@/features/profile/hooks/useProfiles'
 import { Button } from '@/shared/components/ui/Button'
 import { Card } from '@/shared/components/ui/Card'
 import { Input } from '@/shared/components/ui/Input'
@@ -37,6 +38,18 @@ export function ChatPage() {
 
   const { data: typingUsers, setTyping: setTypingMutation } = useTyping(
     activeRoomId ?? '',
+  )
+
+  useEffect(() => {
+    console.log('typingUsers:', typingUsers)
+  }, [typingUsers])
+
+  const otherTypingUsers = (typingUsers ?? []).filter(
+    (typingUser) => typingUser.user_id !== user?.id,
+  )
+
+  const { data: onlineProfiles = [] } = useProfiles(
+    otherTypingUsers.map((typingUser) => typingUser.user_id),
   )
 
   useEffect(() => {
@@ -123,10 +136,6 @@ export function ChatPage() {
   }, [activeRoomId, messages, user, markMessagesAsReadMutation])
 
   const selectedRoom = rooms?.find((room) => room.id === activeRoomId)
-
-  const otherTypingUsers = (typingUsers ?? []).filter(
-    (typingUser) => typingUser.user_id !== user?.id,
-  )
 
   async function handleCreateRoom() {
     if (!user || !roomName.trim()) {
@@ -288,13 +297,19 @@ export function ChatPage() {
                   </div>
                 )
               })}
-              {otherTypingUsers.length > 0 && (
-                <p className="text-sm text-muted-foreground italic">
-                  Someone is typing...
-                </p>
-              )}
 
               <div ref={messagesEndRef} />
+
+              {onlineProfiles.length > 0 && (
+                <p className="mt-3 text-sm italic text-muted-foreground">
+                  {onlineProfiles
+                    .map((profile) => profile.full_name ?? profile.email)
+                    .join(', ')}{' '}
+                  {onlineProfiles.length === 1
+                    ? 'is typing...'
+                    : 'are typing...'}
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-center text-muted-foreground">

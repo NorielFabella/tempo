@@ -29,6 +29,8 @@ export async function getTypingUsers(roomId: string) {
     .eq('room_id', roomId)
     .eq('is_typing', true)
 
+  console.log('getTypingUsers:', roomId, data)
+
   if (error) {
     console.error(error)
     throw error
