@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -7,13 +7,53 @@ import { useMarkMessagesAsRead } from '@/features/messaging/chat/hooks/useMarkMe
 import { useMessages } from '@/features/messaging/chat/hooks/useMessages'
 import { useSendMessage } from '@/features/messaging/chat/hooks/useSendMessage'
 import { useTyping } from '@/features/messaging/chat/hooks/useTyping'
+import { usePresence } from '@/features/messaging/presence/hooks/usePresence'
 import { useCreateRoom } from '@/features/messaging/rooms/hooks/useCreateRoom'
+import { useRoomMembers } from '@/features/messaging/rooms/hooks/useRoomMembers'
 import { useRooms } from '@/features/messaging/rooms/hooks/useRooms'
 import { useProfiles } from '@/features/profile/hooks/useProfiles'
 import { Button } from '@/shared/components/ui/Button'
 import { Card } from '@/shared/components/ui/Card'
 import { Input } from '@/shared/components/ui/Input'
 import { supabase } from '@/shared/supabase/client'
+
+function getDisplayName(fullName: string | null, email: string) {
+  if (fullName?.trim()) {
+    return fullName.trim().split(/\s+/)[0]
+  }
+
+  return email
+}
+
+function formatLastSeen(lastSeenAt: string | null) {
+  if (!lastSeenAt) {
+    return 'never'
+  }
+
+  const lastSeen = new Date(lastSeenAt)
+  const now = new Date()
+
+  const diffMs = Math.max(0, now.getTime() - lastSeen.getTime())
+  const diffMinutes = Math.floor(diffMs / 60_000)
+
+  if (diffMinutes < 1) {
+    return 'just now'
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60)
+
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+  }
+
+  const diffDays = Math.floor(diffHours / 24)
+
+  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+}
 
 export function ChatPage() {
   const { user } = useAuth()
@@ -27,6 +67,7 @@ export function ChatPage() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
   const [roomName, setRoomName] = useState('')
   const [message, setMessage] = useState('')
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<number | null>(null)
 
@@ -40,17 +81,47 @@ export function ChatPage() {
     activeRoomId ?? '',
   )
 
-  useEffect(() => {
-    console.log('typingUsers:', typingUsers)
-  }, [typingUsers])
+  const { data: roomMemberIds = [] } = useRoomMembers(activeRoomId ?? '')
+
+  const { onlineUserIds } = usePresence()
 
   const otherTypingUsers = (typingUsers ?? []).filter(
     (typingUser) => typingUser.user_id !== user?.id,
   )
 
-  const { data: onlineProfiles = [] } = useProfiles(
+  const { data: typingProfiles = [] } = useProfiles(
     otherTypingUsers.map((typingUser) => typingUser.user_id),
   )
+
+  const otherRoomMemberIds = roomMemberIds.filter(
+    (userId) => userId !== user?.id,
+  )
+
+  const otherOnlineUserIds = onlineUserIds.filter(
+    (userId) => userId !== user?.id && roomMemberIds.includes(userId),
+  )
+
+  const offlineRoomMemberIds = otherRoomMemberIds.filter(
+    (userId) => !onlineUserIds.includes(userId),
+  )
+
+  const { data: onlineRoomProfiles = [] } = useProfiles(otherOnlineUserIds)
+
+  const { data: offlineRoomProfiles = [] } = useProfiles(offlineRoomMemberIds)
+
+  const recentlyActiveProfiles = useMemo(() => {
+    const now = new Date().getTime()
+
+    return offlineRoomProfiles.filter((profile) => {
+      if (!profile.last_seen_at) {
+        return false
+      }
+
+      const diffMs = now - new Date(profile.last_seen_at).getTime()
+
+      return diffMs <= 60 * 60_000
+    })
+  }, [offlineRoomProfiles])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -239,6 +310,32 @@ export function ChatPage() {
           <p className="text-sm text-muted-foreground">
             Room ID: {selectedRoom?.id ?? '-'}
           </p>
+
+          {onlineRoomProfiles.length > 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {onlineRoomProfiles.length === 1
+                ? `${getDisplayName(
+                    onlineRoomProfiles[0].full_name,
+                    onlineRoomProfiles[0].email,
+                  )} is online`
+                : `${onlineRoomProfiles.length} people online`}
+            </p>
+          ) : offlineRoomProfiles.length === 1 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {getDisplayName(
+                offlineRoomProfiles[0].full_name,
+                offlineRoomProfiles[0].email,
+              )}{' '}
+              was last seen{' '}
+              {formatLastSeen(offlineRoomProfiles[0].last_seen_at)}
+            </p>
+          ) : offlineRoomProfiles.length > 1 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {recentlyActiveProfiles.length > 0
+                ? `${recentlyActiveProfiles.length} recently active`
+                : `${offlineRoomProfiles.length} members offline`}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
@@ -300,12 +397,14 @@ export function ChatPage() {
 
               <div ref={messagesEndRef} />
 
-              {onlineProfiles.length > 0 && (
+              {typingProfiles.length > 0 && (
                 <p className="mt-3 text-sm italic text-muted-foreground">
-                  {onlineProfiles
-                    .map((profile) => profile.full_name ?? profile.email)
+                  {typingProfiles
+                    .map((profile) =>
+                      getDisplayName(profile.full_name, profile.email),
+                    )
                     .join(', ')}{' '}
-                  {onlineProfiles.length === 1
+                  {typingProfiles.length === 1
                     ? 'is typing...'
                     : 'are typing...'}
                 </p>

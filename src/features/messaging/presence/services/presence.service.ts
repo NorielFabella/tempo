@@ -5,11 +5,13 @@ import type {
 
 import { supabase } from '@/shared/supabase/client'
 
-export function createPresenceChannel(roomId: string) {
-  return supabase.channel(`presence:${roomId}`, {
+const GLOBAL_PRESENCE_CHANNEL = 'presence:global'
+
+export function createPresenceChannel() {
+  return supabase.channel(GLOBAL_PRESENCE_CHANNEL, {
     config: {
       presence: {
-        key: roomId,
+        key: 'global',
       },
     },
   })
@@ -25,13 +27,30 @@ export async function untrackPresence(channel: RealtimeChannel) {
   await channel.untrack()
 }
 
+export async function updateLastSeen(userId: string) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      last_seen_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+
+  if (error) {
+    throw error
+  }
+}
+
 type PresenceMetadata = {
   presence_ref: string
   user_id: string
 }
 
 export function getOnlineUserIds(state: RealtimePresenceState): string[] {
-  return Object.values(state)
-    .flat()
-    .map((presence) => (presence as PresenceMetadata).user_id)
+  return [
+    ...new Set(
+      Object.values(state)
+        .flat()
+        .map((presence) => (presence as PresenceMetadata).user_id),
+    ),
+  ]
 }

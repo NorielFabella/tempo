@@ -29,3 +29,16 @@ export async function createRoom(name: string, createdBy: string) {
 
   return true
 }
+
+export async function getRoomMemberIds(roomId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('room_members')
+    .select('user_id')
+    .eq('room_id', roomId)
+
+  if (error) {
+    throw error
+  }
+
+  return data.map((member) => member.user_id)
+}
