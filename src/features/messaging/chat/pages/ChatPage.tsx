@@ -3,6 +3,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { useAuth } from '@/features/auth/hooks/useAuth'
+import { AttachmentList } from '@/features/messaging/attachments/components/AttachmentList'
+import { AttachmentPicker } from '@/features/messaging/attachments/components/AttachmentPicker'
+import { useMessageAttachments } from '@/features/messaging/attachments/hooks/useMessageAttachments'
+import { validateAttachments } from '@/features/messaging/attachments/services/attachments.service'
 import { useMarkMessagesAsRead } from '@/features/messaging/chat/hooks/useMarkMessagesAsRead'
 import { useMessages } from '@/features/messaging/chat/hooks/useMessages'
 import { useSendMessage } from '@/features/messaging/chat/hooks/useSendMessage'
@@ -67,8 +71,13 @@ export function ChatPage() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
   const [roomName, setRoomName] = useState('')
   const [message, setMessage] = useState('')
+  const [attachmentsToSend, setAttachmentsToSend] = useState<File[]>([])
+  const [attachmentError, setAttachmentError] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const isAtBottomRef = useRef(true)
+  const previousRoomIdRef = useRef<string | null>(null)
   const typingTimeoutRef = useRef<number | null>(null)
 
   const activeRoomId = selectedRoomId ?? rooms?.[0]?.id ?? null
@@ -92,6 +101,38 @@ export function ChatPage() {
   const { data: typingProfiles = [] } = useProfiles(
     otherTypingUsers.map((typingUser) => typingUser.user_id),
   )
+
+  const messageSenderIds = useMemo(
+    () => [...new Set((messages ?? []).map((message) => message.sender_id))],
+    [messages],
+  )
+
+  const { data: messageProfiles = [] } = useProfiles(messageSenderIds)
+
+  const messageProfilesById = useMemo(
+    () => new Map(messageProfiles.map((profile) => [profile.id, profile])),
+    [messageProfiles],
+  )
+
+  const messageIds = useMemo(
+    () => (messages ?? []).map((chatMessage) => chatMessage.id),
+    [messages],
+  )
+
+  const { data: messageAttachments = [], isError: areAttachmentsUnavailable } =
+    useMessageAttachments(messageIds)
+
+  const attachmentsByMessageId = useMemo(() => {
+    const attachmentsById = new Map<string, typeof messageAttachments>()
+
+    for (const attachment of messageAttachments) {
+      const attachments = attachmentsById.get(attachment.message_id) ?? []
+
+      attachmentsById.set(attachment.message_id, [...attachments, attachment])
+    }
+
+    return attachmentsById
+  }, [messageAttachments])
 
   const otherRoomMemberIds = roomMemberIds.filter(
     (userId) => userId !== user?.id,
@@ -123,11 +164,37 @@ export function ChatPage() {
     })
   }, [offlineRoomProfiles])
 
+  const handleScroll = () => {
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const { scrollTop, scrollHeight, clientHeight } = container
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+    isAtBottomRef.current = distanceFromBottom <= 100
+  }
+
+  const handleImageLoad = () => {
+    if (isAtBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: 'smooth',
+      })
+    }
+  }
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: 'smooth',
-    })
-  }, [messages])
+    if (activeRoomId !== previousRoomIdRef.current) {
+      previousRoomIdRef.current = activeRoomId
+      isAtBottomRef.current = true
+    }
+  }, [activeRoomId])
+
+  useEffect(() => {
+    if (isAtBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: 'smooth',
+      })
+    }
+  }, [activeRoomId, messages, messageAttachments])
 
   useEffect(() => {
     if (!activeRoomId) {
@@ -147,6 +214,33 @@ export function ChatPage() {
         () => {
           void queryClient.invalidateQueries({
             queryKey: ['messages', activeRoomId],
+          })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [activeRoomId, queryClient])
+
+  useEffect(() => {
+    if (!activeRoomId) {
+      return
+    }
+
+    const channel = supabase
+      .channel(`attachments:${activeRoomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'message_attachments',
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['message-attachments'],
           })
         },
       )
@@ -222,15 +316,36 @@ export function ChatPage() {
   }
 
   async function handleSendMessage() {
-    if (!user || !activeRoomId || !message.trim()) {
+    const content = message.trim()
+
+    if (
+      !user ||
+      !activeRoomId ||
+      (!content && attachmentsToSend.length === 0)
+    ) {
       return
     }
 
-    await sendMessageMutation.mutateAsync({
-      roomId: activeRoomId,
-      senderId: user.id,
-      content: message.trim(),
-    })
+    try {
+      const result = await sendMessageMutation.mutateAsync({
+        roomId: activeRoomId,
+        senderId: user.id,
+        content,
+        attachments: attachmentsToSend,
+      })
+
+      setMessage('')
+      setAttachmentsToSend([])
+      setAttachmentError(result.attachmentError)
+      isAtBottomRef.current = true
+      messagesEndRef.current?.scrollIntoView({
+        behavior: 'smooth',
+      })
+    } catch {
+      setAttachmentError('Your message could not be sent. Please try again.')
+
+      return
+    }
 
     if (typingTimeoutRef.current) {
       window.clearTimeout(typingTimeoutRef.current)
@@ -241,8 +356,22 @@ export function ChatPage() {
       userId: user.id,
       isTyping: false,
     })
+  }
 
-    setMessage('')
+  function handleAddAttachments(files: File[]) {
+    const nextAttachments = [...attachmentsToSend, ...files]
+
+    try {
+      validateAttachments(nextAttachments)
+      setAttachmentsToSend(nextAttachments)
+      setAttachmentError(null)
+    } catch (error) {
+      setAttachmentError(
+        error instanceof Error
+          ? error.message
+          : 'The selected file could not be attached.',
+      )
+    }
   }
 
   if (isLoading) {
@@ -338,7 +467,11 @@ export function ChatPage() {
           ) : null}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4"
+        >
           {isMessagesLoading ? (
             <p className="text-center text-muted-foreground">
               Loading messages...
@@ -347,6 +480,10 @@ export function ChatPage() {
             <div className="space-y-4">
               {messages.map((message) => {
                 const isOwnMessage = message.sender_id === user?.id
+                const senderProfile = messageProfilesById.get(message.sender_id)
+                const senderName = senderProfile
+                  ? getDisplayName(senderProfile.full_name, senderProfile.email)
+                  : 'Unknown user'
 
                 return (
                   <div
@@ -367,10 +504,20 @@ export function ChatPage() {
                             : 'text-muted-foreground'
                         }`}
                       >
-                        {message.sender_id}
+                        {senderName}
                       </p>
 
-                      <p className="mt-1 break-words">{message.content}</p>
+                      {message.content && (
+                        <p className="mt-1 break-words">{message.content}</p>
+                      )}
+
+                      <AttachmentList
+                        attachments={
+                          attachmentsByMessageId.get(message.id) ?? []
+                        }
+                        isOwnMessage={isOwnMessage}
+                        onImageLoad={handleImageLoad}
+                      />
 
                       <div
                         className={`mt-2 flex items-center gap-2 text-xs ${
@@ -395,7 +542,11 @@ export function ChatPage() {
                 )
               })}
 
-              <div ref={messagesEndRef} />
+              {areAttachmentsUnavailable && (
+                <p role="alert" className="text-sm text-red-600">
+                  Some attachments could not be loaded. Please try refreshing.
+                </p>
+              )}
 
               {typingProfiles.length > 0 && (
                 <p className="mt-3 text-sm italic text-muted-foreground">
@@ -409,6 +560,8 @@ export function ChatPage() {
                     : 'are typing...'}
                 </p>
               )}
+
+              <div ref={messagesEndRef} />
             </div>
           ) : (
             <p className="text-center text-muted-foreground">
@@ -418,72 +571,89 @@ export function ChatPage() {
         </div>
 
         <div className="border-t p-4">
-          <div className="flex gap-3">
-            <Input
-              placeholder="Type a message..."
-              value={message}
-              onChange={(event) => {
-                const value = event.target.value
+          <div className="space-y-3">
+            <AttachmentPicker
+              attachments={attachmentsToSend}
+              disabled={sendMessageMutation.isPending || !activeRoomId}
+              error={attachmentError}
+              onAdd={handleAddAttachments}
+              onRemove={(index) => {
+                setAttachmentsToSend((attachments) =>
+                  attachments.filter(
+                    (_, attachmentIndex) => attachmentIndex !== index,
+                  ),
+                )
+                setAttachmentError(null)
+              }}
+            />
 
-                setMessage(value)
+            <div className="flex gap-3">
+              <Input
+                placeholder="Type a message..."
+                value={message}
+                onChange={(event) => {
+                  const value = event.target.value
 
-                if (!user || !activeRoomId) {
-                  return
-                }
+                  setMessage(value)
 
-                void setTypingMutation.mutate({
-                  roomId: activeRoomId,
-                  userId: user.id,
-                  isTyping: value.length > 0,
-                })
+                  if (!user || !activeRoomId) {
+                    return
+                  }
 
-                if (typingTimeoutRef.current) {
-                  window.clearTimeout(typingTimeoutRef.current)
-                }
+                  void setTypingMutation.mutate({
+                    roomId: activeRoomId,
+                    userId: user.id,
+                    isTyping: value.length > 0,
+                  })
 
-                if (value.length > 0) {
-                  typingTimeoutRef.current = window.setTimeout(() => {
+                  if (typingTimeoutRef.current) {
+                    window.clearTimeout(typingTimeoutRef.current)
+                  }
+
+                  if (value.length > 0) {
+                    typingTimeoutRef.current = window.setTimeout(() => {
+                      void setTypingMutation.mutate({
+                        roomId: activeRoomId,
+                        userId: user.id,
+                        isTyping: false,
+                      })
+                    }, 2000)
+                  }
+                }}
+                onBlur={() => {
+                  if (typingTimeoutRef.current) {
+                    window.clearTimeout(typingTimeoutRef.current)
+                  }
+
+                  if (user && activeRoomId) {
                     void setTypingMutation.mutate({
                       roomId: activeRoomId,
                       userId: user.id,
                       isTyping: false,
                     })
-                  }, 2000)
-                }
-              }}
-              onBlur={() => {
-                if (typingTimeoutRef.current) {
-                  window.clearTimeout(typingTimeoutRef.current)
-                }
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    void handleSendMessage()
+                  }
+                }}
+              />
 
-                if (user && activeRoomId) {
-                  void setTypingMutation.mutate({
-                    roomId: activeRoomId,
-                    userId: user.id,
-                    isTyping: false,
-                  })
-                }
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
+              <Button
+                onClick={() => {
                   void handleSendMessage()
+                }}
+                disabled={
+                  sendMessageMutation.isPending ||
+                  (!message.trim() && attachmentsToSend.length === 0) ||
+                  !activeRoomId
                 }
-              }}
-            />
-
-            <Button
-              onClick={() => {
-                void handleSendMessage()
-              }}
-              disabled={
-                sendMessageMutation.isPending ||
-                !message.trim() ||
-                !activeRoomId
-              }
-            >
-              {sendMessageMutation.isPending ? 'Sending...' : 'Send'}
-            </Button>
+              >
+                {sendMessageMutation.isPending ? 'Sending...' : 'Send'}
+              </Button>
+            </div>
           </div>
         </div>
       </Card>
