@@ -32,6 +32,7 @@ export function AttachmentPicker({
         type="file"
         multiple
         accept={ATTACHMENT_INPUT_ACCEPT}
+        aria-label="Choose files to attach"
         onChange={(event) => {
           onAdd(Array.from(event.target.files ?? []))
           event.target.value = ''
@@ -42,6 +43,7 @@ export function AttachmentPicker({
         type="button"
         variant="secondary"
         className="px-3 py-2"
+        aria-label="Attach files"
         disabled={disabled}
         onClick={() => {
           fileInputRef.current?.click()
@@ -70,6 +72,7 @@ export function AttachmentPicker({
                 type="button"
                 variant="ghost"
                 className="shrink-0 px-2 py-1"
+                aria-label={`Remove ${attachment.name}`}
                 disabled={disabled}
                 onClick={() => {
                   onRemove(index)

@@ -61,7 +61,12 @@ function formatLastSeen(lastSeenAt: string | null) {
 
 export function ChatPage() {
   const { user } = useAuth()
-  const { data: rooms, isLoading } = useRooms()
+  const {
+    data: rooms,
+    isLoading: areRoomsLoading,
+    isError: areRoomsUnavailable,
+    refetch: refetchRooms,
+  } = useRooms()
   const createRoomMutation = useCreateRoom()
   const sendMessageMutation = useSendMessage()
 
@@ -73,18 +78,26 @@ export function ChatPage() {
   const [message, setMessage] = useState('')
   const [attachmentsToSend, setAttachmentsToSend] = useState<File[]>([])
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
+  const [roomError, setRoomError] = useState<string | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
+  const [hasNewMessages, setHasNewMessages] = useState(false)
+  const [isAtBottom, setIsAtBottom] = useState(true)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const isAtBottomRef = useRef(true)
   const previousRoomIdRef = useRef<string | null>(null)
+  const previousMessageIdsRef = useRef<string[]>([])
   const typingTimeoutRef = useRef<number | null>(null)
 
   const activeRoomId = selectedRoomId ?? rooms?.[0]?.id ?? null
 
-  const { data: messages, isLoading: isMessagesLoading } = useMessages(
-    activeRoomId ?? '',
-  )
+  const {
+    data: messages,
+    isLoading: isMessagesLoading,
+    isError: areMessagesUnavailable,
+    refetch: refetchMessages,
+  } = useMessages(activeRoomId ?? '')
 
   const { data: typingUsers, setTyping: setTypingMutation } = useTyping(
     activeRoomId ?? '',
@@ -119,8 +132,11 @@ export function ChatPage() {
     [messages],
   )
 
-  const { data: messageAttachments = [], isError: areAttachmentsUnavailable } =
-    useMessageAttachments(messageIds)
+  const {
+    data: messageAttachments = [],
+    isError: areAttachmentsUnavailable,
+    refetch: refetchAttachments,
+  } = useMessageAttachments(messageIds)
 
   const attachmentsByMessageId = useMemo(() => {
     const attachmentsById = new Map<string, typeof messageAttachments>()
@@ -164,37 +180,68 @@ export function ChatPage() {
     })
   }, [offlineRoomProfiles])
 
+  function scrollToLatest(behavior: ScrollBehavior = 'smooth') {
+    messagesEndRef.current?.scrollIntoView({ behavior })
+  }
+
   const handleScroll = () => {
     const container = scrollContainerRef.current
     if (!container) return
 
     const { scrollTop, scrollHeight, clientHeight } = container
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight
-    isAtBottomRef.current = distanceFromBottom <= 100
+    const isNearBottom = distanceFromBottom <= 100
+
+    isAtBottomRef.current = isNearBottom
+    setIsAtBottom(isNearBottom)
+
+    if (isNearBottom) {
+      setHasNewMessages(false)
+    }
   }
 
   const handleImageLoad = () => {
     if (isAtBottomRef.current) {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: 'smooth',
-      })
+      scrollToLatest()
     }
   }
 
   useEffect(() => {
     if (activeRoomId !== previousRoomIdRef.current) {
       previousRoomIdRef.current = activeRoomId
+      previousMessageIdsRef.current = []
       isAtBottomRef.current = true
+      setIsAtBottom(true)
+      setHasNewMessages(false)
     }
   }, [activeRoomId])
 
   useEffect(() => {
-    if (isAtBottomRef.current) {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: 'smooth',
-      })
+    if (!messages) {
+      return
     }
-  }, [activeRoomId, messages, messageAttachments])
+
+    const messageIds = messages.map((chatMessage) => chatMessage.id)
+    const previousMessageIds = previousMessageIdsRef.current
+    const hasReceivedNewMessages =
+      previousMessageIds.length > 0 &&
+      messageIds.some((messageId) => !previousMessageIds.includes(messageId))
+
+    previousMessageIdsRef.current = messageIds
+
+    if (isAtBottomRef.current) {
+      scrollToLatest()
+      setHasNewMessages(false)
+    } else if (hasReceivedNewMessages) {
+      setHasNewMessages(true)
+    }
+  }, [activeRoomId, messages])
+
+  useEffect(() => {
+    if (isAtBottomRef.current) {
+      scrollToLatest()
+    }
+  }, [messageAttachments])
 
   useEffect(() => {
     if (!activeRoomId) {
@@ -280,7 +327,7 @@ export function ChatPage() {
   }, [activeRoomId, queryClient])
 
   useEffect(() => {
-    if (!user || !activeRoomId || !messages?.length) {
+    if (!user || !activeRoomId || !messages?.length || !isAtBottom) {
       return
     }
 
@@ -298,7 +345,7 @@ export function ChatPage() {
         userId: user.id,
       })
     }
-  }, [activeRoomId, messages, user, markMessagesAsReadMutation])
+  }, [activeRoomId, isAtBottom, messages, user, markMessagesAsReadMutation])
 
   const selectedRoom = rooms?.find((room) => room.id === activeRoomId)
 
@@ -307,12 +354,19 @@ export function ChatPage() {
       return
     }
 
-    await createRoomMutation.mutateAsync({
-      name: roomName.trim(),
-      userId: user.id,
-    })
+    setRoomError(null)
 
-    setRoomName('')
+    try {
+      await createRoomMutation.mutateAsync({
+        name: roomName.trim(),
+        userId: user.id,
+      })
+
+      setRoomName('')
+      setSelectedRoomId(null)
+    } catch {
+      setRoomError('The room could not be created. Please try again.')
+    }
   }
 
   async function handleSendMessage() {
@@ -326,6 +380,8 @@ export function ChatPage() {
       return
     }
 
+    setSendError(null)
+
     try {
       const result = await sendMessageMutation.mutateAsync({
         roomId: activeRoomId,
@@ -338,11 +394,10 @@ export function ChatPage() {
       setAttachmentsToSend([])
       setAttachmentError(result.attachmentError)
       isAtBottomRef.current = true
-      messagesEndRef.current?.scrollIntoView({
-        behavior: 'smooth',
-      })
+      setIsAtBottom(true)
+      scrollToLatest()
     } catch {
-      setAttachmentError('Your message could not be sent. Please try again.')
+      setSendError('Your message could not be sent. Please try again.')
 
       return
     }
@@ -374,20 +429,17 @@ export function ChatPage() {
     }
   }
 
-  if (isLoading) {
-    return <p>Loading...</p>
-  }
-
   return (
-    <div className="grid h-[calc(100vh-10rem)] grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+    <div className="grid h-[calc(100dvh-8rem)] min-h-[36rem] grid-cols-1 grid-rows-[minmax(12rem,0.42fr)_minmax(0,1fr)] gap-4 lg:h-[calc(100vh-10rem)] lg:min-h-0 lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-1 lg:gap-6">
       {/* Rooms Sidebar */}
-      <Card className="flex flex-col overflow-hidden">
-        <div className="border-b p-4">
+      <Card className="flex min-h-0 flex-col overflow-hidden">
+        <div className="border-b p-3 sm:p-4">
           <h2 className="text-lg font-semibold">Rooms</h2>
 
           <div className="mt-4 space-y-2">
             <Input
               placeholder="Room name..."
+              aria-label="New room name"
               value={roomName}
               onChange={(event) => {
                 setRoomName(event.target.value)
@@ -403,44 +455,82 @@ export function ChatPage() {
             >
               {createRoomMutation.isPending ? 'Creating...' : 'New Room'}
             </Button>
+
+            {roomError && (
+              <p role="alert" className="text-sm text-red-600">
+                {roomError}
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="flex-1 space-y-2 overflow-y-auto p-3">
-          {rooms?.length ? (
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+          {areRoomsLoading ? (
+            <div className="space-y-2" aria-busy="true">
+              <span className="sr-only">Loading rooms</span>
+              {[1, 2, 3].map((room) => (
+                <div
+                  key={room}
+                  className="h-14 animate-pulse rounded-lg bg-slate-100"
+                />
+              ))}
+            </div>
+          ) : areRoomsUnavailable ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+            >
+              Rooms could not be loaded.
+              <Button
+                type="button"
+                variant="secondary"
+                className="mt-3 w-full"
+                onClick={() => {
+                  void refetchRooms()
+                }}
+              >
+                Try again
+              </Button>
+            </div>
+          ) : rooms?.length ? (
             rooms.map((room) => (
               <button
                 key={room.id}
+                type="button"
                 onClick={() => {
                   setSelectedRoomId(room.id)
                 }}
-                className={`w-full rounded-lg border px-4 py-3 text-left transition ${
+                aria-pressed={room.id === activeRoomId}
+                className={`w-full rounded-lg border px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
                   room.id === activeRoomId
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                    : 'hover:bg-muted'
+                    : 'hover:bg-slate-50'
                 }`}
               >
                 <p className="font-medium">{room.name ?? 'Direct Message'}</p>
               </button>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground">No rooms found.</p>
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              Create a room to start a conversation.
+            </div>
           )}
         </div>
       </Card>
 
       {/* Chat Area */}
-      <Card className="flex flex-col overflow-hidden">
-        <div className="border-b p-4">
+      <Card className="flex min-h-0 flex-col overflow-hidden">
+        <div className="border-b p-3 sm:p-4">
           <h2 className="text-lg font-semibold">
-            {selectedRoom?.name ?? 'Direct Message'}
+            {selectedRoom?.name ??
+              (activeRoomId ? 'Direct Message' : 'Select a room')}
           </h2>
 
-          <p className="text-sm text-muted-foreground">
-            Room ID: {selectedRoom?.id ?? '-'}
-          </p>
-
-          {onlineRoomProfiles.length > 0 ? (
+          {!activeRoomId ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose a room from the list, or create a new one.
+            </p>
+          ) : onlineRoomProfiles.length > 0 ? (
             <p className="mt-2 text-sm text-muted-foreground">
               {onlineRoomProfiles.length === 1
                 ? `${getDisplayName(
@@ -467,88 +557,158 @@ export function ChatPage() {
           ) : null}
         </div>
 
-        <div
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="flex-1 overflow-y-auto p-4"
-        >
-          {isMessagesLoading ? (
-            <p className="text-center text-muted-foreground">
-              Loading messages...
-            </p>
-          ) : messages?.length ? (
-            <div className="space-y-4">
-              {messages.map((message) => {
-                const isOwnMessage = message.sender_id === user?.id
-                const senderProfile = messageProfilesById.get(message.sender_id)
-                const senderName = senderProfile
-                  ? getDisplayName(senderProfile.full_name, senderProfile.email)
-                  : 'Unknown user'
-
-                return (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      isOwnMessage ? 'justify-end' : 'justify-start'
-                    }`}
+        <div className="relative min-h-0 flex-1">
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            role="log"
+            aria-live="polite"
+            aria-label="Messages"
+            aria-busy={isMessagesLoading}
+            className="h-full overflow-y-auto p-3 sm:p-4"
+          >
+            {!activeRoomId ? (
+              <div className="flex h-full items-center justify-center text-center">
+                <p className="max-w-xs text-sm text-muted-foreground">
+                  Your messages will appear here once you select a room.
+                </p>
+              </div>
+            ) : isMessagesLoading ? (
+              <div className="space-y-4" aria-hidden="true">
+                <div className="h-16 w-3/4 animate-pulse rounded-2xl bg-slate-100" />
+                <div className="ml-auto h-20 w-2/3 animate-pulse rounded-2xl bg-slate-200" />
+                <div className="h-12 w-1/2 animate-pulse rounded-2xl bg-slate-100" />
+                <span className="sr-only">Loading messages</span>
+              </div>
+            ) : areMessagesUnavailable ? (
+              <div className="flex h-full items-center justify-center text-center">
+                <div
+                  role="alert"
+                  className="max-w-sm rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+                >
+                  <p>Messages could not be loaded.</p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="mt-3"
+                    onClick={() => {
+                      void refetchMessages()
+                    }}
                   >
+                    Try again
+                  </Button>
+                </div>
+              </div>
+            ) : messages?.length ? (
+              <div className="space-y-1">
+                {messages.map((message, index) => {
+                  const isOwnMessage = message.sender_id === user?.id
+                  const senderProfile = messageProfilesById.get(
+                    message.sender_id,
+                  )
+                  const senderName = senderProfile
+                    ? getDisplayName(
+                        senderProfile.full_name,
+                        senderProfile.email,
+                      )
+                    : 'Unknown user'
+                  const isSameSenderAsPrevious =
+                    messages[index - 1]?.sender_id === message.sender_id
+                  const shouldShowSender =
+                    !isOwnMessage && !isSameSenderAsPrevious
+
+                  return (
                     <div
-                      className={`max-w-[75%] rounded-2xl border px-4 py-3 ${
-                        isOwnMessage ? 'bg-blue-600 text-white' : 'bg-card'
-                      }`}
+                      key={message.id}
+                      className={`flex ${
+                        isOwnMessage ? 'justify-end' : 'justify-start'
+                      } ${isSameSenderAsPrevious ? 'mt-1' : 'mt-4 first:mt-0'}`}
                     >
-                      <p
-                        className={`text-xs ${
-                          isOwnMessage
-                            ? 'text-blue-100'
-                            : 'text-muted-foreground'
-                        }`}
-                      >
-                        {senderName}
-                      </p>
-
-                      {message.content && (
-                        <p className="mt-1 break-words">{message.content}</p>
-                      )}
-
-                      <AttachmentList
-                        attachments={
-                          attachmentsByMessageId.get(message.id) ?? []
-                        }
-                        isOwnMessage={isOwnMessage}
-                        onImageLoad={handleImageLoad}
-                      />
-
                       <div
-                        className={`mt-2 flex items-center gap-2 text-xs ${
-                          isOwnMessage
-                            ? 'text-blue-100'
-                            : 'text-muted-foreground'
+                        className={`max-w-[88%] rounded-2xl border px-3 py-2 sm:max-w-[75%] sm:px-4 sm:py-3 ${
+                          isOwnMessage ? 'bg-blue-600 text-white' : 'bg-card'
                         }`}
                       >
-                        <span>
-                          {new Date(message.created_at).toLocaleTimeString([], {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
-                        </span>
-
-                        {isOwnMessage && (
-                          <span>{message.read_at ? 'Seen' : 'Sent'}</span>
+                        {shouldShowSender && (
+                          <p className="text-xs text-muted-foreground">
+                            {senderName}
+                          </p>
                         )}
+
+                        {message.content && (
+                          <p
+                            className={`${
+                              shouldShowSender ? 'mt-1' : ''
+                            } break-words`}
+                          >
+                            {message.content}
+                          </p>
+                        )}
+
+                        <AttachmentList
+                          attachments={
+                            attachmentsByMessageId.get(message.id) ?? []
+                          }
+                          isOwnMessage={isOwnMessage}
+                          onImageLoad={handleImageLoad}
+                        />
+
+                        <div
+                          className={`mt-1.5 flex items-center gap-2 text-xs ${
+                            isOwnMessage
+                              ? 'text-blue-100'
+                              : 'text-muted-foreground'
+                          }`}
+                        >
+                          <span>
+                            {new Date(message.created_at).toLocaleTimeString(
+                              [],
+                              {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              },
+                            )}
+                          </span>
+
+                          {isOwnMessage && (
+                            <span>{message.read_at ? 'Seen' : 'Sent'}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-
-              {areAttachmentsUnavailable && (
-                <p role="alert" className="text-sm text-red-600">
-                  Some attachments could not be loaded. Please try refreshing.
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="flex h-full items-center justify-center text-center">
+                <p className="max-w-xs text-sm text-muted-foreground">
+                  No messages yet. Say hello to start the conversation.
                 </p>
-              )}
+              </div>
+            )}
 
-              {typingProfiles.length > 0 && (
+            {areAttachmentsUnavailable && (
+              <div
+                role="alert"
+                className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
+              >
+                Some attachments could not be loaded.
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="ml-3 px-3 py-1"
+                  onClick={() => {
+                    void refetchAttachments()
+                  }}
+                >
+                  Try again
+                </Button>
+              </div>
+            )}
+
+            {!isMessagesLoading &&
+              !areMessagesUnavailable &&
+              typingProfiles.length > 0 && (
                 <p className="mt-3 text-sm italic text-muted-foreground">
                   {typingProfiles
                     .map((profile) =>
@@ -561,17 +721,33 @@ export function ChatPage() {
                 </p>
               )}
 
-              <div ref={messagesEndRef} />
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground">
-              No messages yet.
-            </p>
+            <div ref={messagesEndRef} />
+          </div>
+
+          {hasNewMessages && (
+            <Button
+              type="button"
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap shadow-lg"
+              onClick={() => {
+                isAtBottomRef.current = true
+                setIsAtBottom(true)
+                setHasNewMessages(false)
+                scrollToLatest()
+              }}
+            >
+              New messages ↓
+            </Button>
           )}
         </div>
 
-        <div className="border-t p-4">
+        <div className="border-t p-3 sm:p-4">
           <div className="space-y-3">
+            {sendError && (
+              <p role="alert" className="text-sm text-red-600">
+                {sendError}
+              </p>
+            )}
+
             <AttachmentPicker
               attachments={attachmentsToSend}
               disabled={sendMessageMutation.isPending || !activeRoomId}
@@ -587,9 +763,11 @@ export function ChatPage() {
               }}
             />
 
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <Input
                 placeholder="Type a message..."
+                aria-label="Message"
+                className="min-w-0 flex-1"
                 value={message}
                 onChange={(event) => {
                   const value = event.target.value
@@ -642,6 +820,8 @@ export function ChatPage() {
               />
 
               <Button
+                type="button"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   void handleSendMessage()
                 }}
