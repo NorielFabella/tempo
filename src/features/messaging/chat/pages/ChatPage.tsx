@@ -12,6 +12,7 @@ import { useMessages } from '@/features/messaging/chat/hooks/useMessages'
 import { useSendMessage } from '@/features/messaging/chat/hooks/useSendMessage'
 import { useTyping } from '@/features/messaging/chat/hooks/useTyping'
 import { usePresence } from '@/features/messaging/presence/hooks/usePresence'
+import { RoomList } from '@/features/messaging/rooms/components/RoomList'
 import { useCreateRoom } from '@/features/messaging/rooms/hooks/useCreateRoom'
 import { useRoomMembers } from '@/features/messaging/rooms/hooks/useRoomMembers'
 import { useRooms } from '@/features/messaging/rooms/hooks/useRooms'
@@ -66,7 +67,7 @@ export function ChatPage() {
     isLoading: areRoomsLoading,
     isError: areRoomsUnavailable,
     refetch: refetchRooms,
-  } = useRooms()
+  } = useRooms(user?.id)
   const createRoomMutation = useCreateRoom()
   const sendMessageMutation = useSendMessage()
 
@@ -74,6 +75,7 @@ export function ChatPage() {
   const queryClient = useQueryClient()
 
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
+  const [isMobileRoomListOpen, setIsMobileRoomListOpen] = useState(true)
   const [roomName, setRoomName] = useState('')
   const [message, setMessage] = useState('')
   const [attachmentsToSend, setAttachmentsToSend] = useState<File[]>([])
@@ -89,6 +91,8 @@ export function ChatPage() {
   const previousRoomIdRef = useRef<string | null>(null)
   const previousMessageIdsRef = useRef<string[]>([])
   const typingTimeoutRef = useRef<number | null>(null)
+  const shouldScrollToRoomBottomRef = useRef(false)
+  // const isInitialRoomScrollPendingRef = useRef(false)
 
   const activeRoomId = selectedRoomId ?? rooms?.[0]?.id ?? null
 
@@ -134,6 +138,7 @@ export function ChatPage() {
 
   const {
     data: messageAttachments = [],
+    isFetching: isMessageAttachmentsFetching,
     isError: areAttachmentsUnavailable,
     refetch: refetchAttachments,
   } = useMessageAttachments(messageIds)
@@ -200,19 +205,17 @@ export function ChatPage() {
     }
   }
 
-  const handleImageLoad = () => {
-    if (isAtBottomRef.current) {
-      scrollToLatest()
-    }
-  }
-
   useEffect(() => {
     if (activeRoomId !== previousRoomIdRef.current) {
       previousRoomIdRef.current = activeRoomId
       previousMessageIdsRef.current = []
+
       isAtBottomRef.current = true
       setIsAtBottom(true)
       setHasNewMessages(false)
+
+      shouldScrollToRoomBottomRef.current = true
+      // isInitialRoomScrollPendingRef.current = true
     }
   }, [activeRoomId])
 
@@ -223,11 +226,17 @@ export function ChatPage() {
 
     const messageIds = messages.map((chatMessage) => chatMessage.id)
     const previousMessageIds = previousMessageIdsRef.current
+
     const hasReceivedNewMessages =
       previousMessageIds.length > 0 &&
       messageIds.some((messageId) => !previousMessageIds.includes(messageId))
 
     previousMessageIdsRef.current = messageIds
+
+    // Initial room positioning is handled separately.
+    if (shouldScrollToRoomBottomRef.current) {
+      return
+    }
 
     if (isAtBottomRef.current) {
       scrollToLatest()
@@ -238,10 +247,10 @@ export function ChatPage() {
   }, [activeRoomId, messages])
 
   useEffect(() => {
-    if (isAtBottomRef.current) {
+    if (typingProfiles.length > 0 && isAtBottomRef.current) {
       scrollToLatest()
     }
-  }, [messageAttachments])
+  }, [typingProfiles])
 
   useEffect(() => {
     if (!activeRoomId) {
@@ -262,6 +271,10 @@ export function ChatPage() {
           void queryClient.invalidateQueries({
             queryKey: ['messages', activeRoomId],
           })
+
+          void queryClient.invalidateQueries({
+            queryKey: ['rooms', user?.id],
+          })
         },
       )
       .subscribe()
@@ -270,6 +283,60 @@ export function ChatPage() {
       void supabase.removeChannel(channel)
     }
   }, [activeRoomId, queryClient])
+
+  useEffect(() => {
+    if (!user?.id) {
+      return
+    }
+
+    const channel = supabase
+      .channel(`room-list:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['rooms', user.id],
+          })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [user?.id, queryClient])
+
+  useEffect(() => {
+    if (!user?.id) {
+      return
+    }
+
+    const channel = supabase
+      .channel(`room-list-attachments:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'message_attachments',
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['rooms', user.id],
+          })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [user?.id, queryClient])
 
   useEffect(() => {
     if (!activeRoomId) {
@@ -288,6 +355,10 @@ export function ChatPage() {
         () => {
           void queryClient.invalidateQueries({
             queryKey: ['message-attachments'],
+          })
+
+          void queryClient.invalidateQueries({
+            queryKey: ['rooms', user?.id],
           })
         },
       )
@@ -331,6 +402,8 @@ export function ChatPage() {
       return
     }
 
+
+
     const hasUnreadMessages = messages.some(
       (message) => message.sender_id !== user.id && message.read_at === null,
     )
@@ -347,6 +420,68 @@ export function ChatPage() {
     }
   }, [activeRoomId, isAtBottom, messages, user, markMessagesAsReadMutation])
 
+ useEffect(() => {
+  if (
+    !activeRoomId ||
+    isMessagesLoading ||
+    !messages ||
+    !shouldScrollToRoomBottomRef.current
+  ) {
+    return
+  }
+
+  const container = scrollContainerRef.current
+
+  if (!container) {
+    return
+  }
+
+  const scrollToRoomBottom = () => {
+    if (!shouldScrollToRoomBottomRef.current) {
+      return
+    }
+
+    container.scrollTop = container.scrollHeight
+
+    isAtBottomRef.current = true
+    setIsAtBottom(true)
+    setHasNewMessages(false)
+  }
+
+  // Scroll to the bottom immediately after the messages render.
+  requestAnimationFrame(scrollToRoomBottom)
+
+  const resizeObserver = new ResizeObserver(() => {
+    if (!shouldScrollToRoomBottomRef.current) {
+      return
+    }
+
+    scrollToRoomBottom()
+  })
+
+  // Observe the actual message content rather than only the
+  // scroll container's own dimensions.
+  const content = container.firstElementChild
+
+  if (content) {
+    resizeObserver.observe(content)
+  }
+
+  // Also observe the container in case its dimensions change.
+  resizeObserver.observe(container)
+
+  // Give images and other async content enough time to finish
+  // changing the message layout before ending initial positioning.
+  const timeoutId = window.setTimeout(() => {
+    shouldScrollToRoomBottomRef.current = false
+  }, 2000)
+
+  return () => {
+    resizeObserver.disconnect()
+    window.clearTimeout(timeoutId)
+  }
+}, [activeRoomId, isMessagesLoading, messages, messageAttachments])
+
   const selectedRoom = rooms?.find((room) => room.id === activeRoomId)
 
   async function handleCreateRoom() {
@@ -357,13 +492,12 @@ export function ChatPage() {
     setRoomError(null)
 
     try {
-      await createRoomMutation.mutateAsync({
+      const createdRoom = await createRoomMutation.mutateAsync({
         name: roomName.trim(),
-        userId: user.id,
       })
 
       setRoomName('')
-      setSelectedRoomId(null)
+      setSelectedRoomId(createdRoom.id)
     } catch {
       setRoomError('The room could not be created. Please try again.')
     }
@@ -379,6 +513,8 @@ export function ChatPage() {
     ) {
       return
     }
+
+    // shouldScrollAfterAttachmentLoadRef.current = isAtBottomRef.current
 
     setSendError(null)
 
@@ -430,9 +566,13 @@ export function ChatPage() {
   }
 
   return (
-    <div className="grid h-[calc(100dvh-8rem)] min-h-[36rem] grid-cols-1 grid-rows-[minmax(12rem,0.42fr)_minmax(0,1fr)] gap-4 lg:h-[calc(100vh-10rem)] lg:min-h-0 lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-1 lg:gap-6">
-      {/* Rooms Sidebar */}
-      <Card className="flex min-h-0 flex-col overflow-hidden">
+    <div className="grid h-[calc(100dvh-8rem)] min-h-[36rem] grid-cols-1 lg:h-[calc(100vh-10rem)] lg:min-h-0 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-6">
+      {/* Rooms */}
+      <Card
+        className={`h-full min-h-0 flex-col overflow-hidden ${
+          isMobileRoomListOpen ? 'flex' : 'hidden'
+        } lg:flex`}
+      >
         <div className="border-b p-3 sm:p-4">
           <h2 className="text-lg font-semibold">Rooms</h2>
 
@@ -462,6 +602,7 @@ export function ChatPage() {
               </p>
             )}
           </div>
+
         </div>
 
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
@@ -493,38 +634,47 @@ export function ChatPage() {
               </Button>
             </div>
           ) : rooms?.length ? (
-            rooms.map((room) => (
-              <button
-                key={room.id}
-                type="button"
-                onClick={() => {
-                  setSelectedRoomId(room.id)
-                }}
-                aria-pressed={room.id === activeRoomId}
-                className={`w-full rounded-lg border px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
-                  room.id === activeRoomId
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                    : 'hover:bg-slate-50'
-                }`}
-              >
-                <p className="font-medium">{room.name ?? 'Direct Message'}</p>
-              </button>
-            ))
-          ) : (
-            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              Create a room to start a conversation.
-            </div>
+                <RoomList
+                  rooms={rooms}
+                  activeRoomId={activeRoomId}
+                  currentUserId={user?.id ?? null}
+                  onSelectRoom={(roomId) => {
+                    setSelectedRoomId(roomId)
+                    setIsMobileRoomListOpen(false)
+                  }}
+                />
+              ) : (
+                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  Create a room to start a conversation.
+                </div>
           )}
         </div>
       </Card>
 
       {/* Chat Area */}
-      <Card className="flex min-h-0 flex-col overflow-hidden">
-        <div className="border-b p-3 sm:p-4">
-          <h2 className="text-lg font-semibold">
-            {selectedRoom?.name ??
-              (activeRoomId ? 'Direct Message' : 'Select a room')}
-          </h2>
+      <Card
+        className={`h-full min-h-0 flex-col overflow-hidden ${
+          isMobileRoomListOpen ? 'hidden' : 'flex'
+        } lg:flex`}
+      >
+        <div className="flex min-w-0 items-start gap-3 border-b p-3 sm:p-4">
+          <Button
+            type="button"
+            variant="secondary"
+            className="shrink-0 lg:hidden"
+            aria-label="Back to rooms"
+            onClick={() => {
+              setIsMobileRoomListOpen(true)
+            }}
+          >
+            ←
+          </Button>
+
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-semibold">
+              {selectedRoom?.name ??
+                (activeRoomId ? 'Direct Message' : 'Select a room')}
+            </h2>
 
           {!activeRoomId ? (
             <p className="mt-1 text-sm text-muted-foreground">
@@ -556,7 +706,7 @@ export function ChatPage() {
             </p>
           ) : null}
         </div>
-
+       </div>
         <div className="relative min-h-0 flex-1">
           <div
             ref={scrollContainerRef}
@@ -565,7 +715,7 @@ export function ChatPage() {
             aria-live="polite"
             aria-label="Messages"
             aria-busy={isMessagesLoading}
-            className="h-full overflow-y-auto p-3 sm:p-4"
+            className="h-full min-w-0 overflow-x-hidden overflow-y-auto p-3 sm:p-4"
           >
             {!activeRoomId ? (
               <div className="flex h-full items-center justify-center text-center">
@@ -600,7 +750,7 @@ export function ChatPage() {
                 </div>
               </div>
             ) : messages?.length ? (
-              <div className="space-y-1">
+              <div className="min-w-0 space-y-1">
                 {messages.map((message, index) => {
                   const isOwnMessage = message.sender_id === user?.id
                   const senderProfile = messageProfilesById.get(
@@ -620,12 +770,12 @@ export function ChatPage() {
                   return (
                     <div
                       key={message.id}
-                      className={`flex ${
+                      className={`flex min-w-0 ${
                         isOwnMessage ? 'justify-end' : 'justify-start'
                       } ${isSameSenderAsPrevious ? 'mt-1' : 'mt-4 first:mt-0'}`}
                     >
                       <div
-                        className={`max-w-[88%] rounded-2xl border px-3 py-2 sm:max-w-[75%] sm:px-4 sm:py-3 ${
+                        className={`min-w-0 max-w-[88%] rounded-2xl border px-3 py-2 sm:max-w-[75%] sm:px-4 sm:py-3 ${
                           isOwnMessage ? 'bg-blue-600 text-white' : 'bg-card'
                         }`}
                       >
@@ -646,11 +796,8 @@ export function ChatPage() {
                         )}
 
                         <AttachmentList
-                          attachments={
-                            attachmentsByMessageId.get(message.id) ?? []
-                          }
+                          attachments={attachmentsByMessageId.get(message.id) ?? []}
                           isOwnMessage={isOwnMessage}
-                          onImageLoad={handleImageLoad}
                         />
 
                         <div

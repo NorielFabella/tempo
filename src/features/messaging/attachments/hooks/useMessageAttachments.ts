@@ -7,5 +7,6 @@ export function useMessageAttachments(messageIds: string[]) {
     queryKey: ['message-attachments', messageIds],
     queryFn: () => getMessageAttachments(messageIds),
     enabled: messageIds.length > 0,
+    placeholderData: (previousData) => previousData,
   })
 }

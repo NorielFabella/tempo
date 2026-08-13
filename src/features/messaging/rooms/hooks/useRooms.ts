@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { getRooms } from '../services/room.service'
+import { getRoomsWithMetadata } from '../services/room.service'
 
-export function useRooms() {
+export function useRooms(currentUserId: string | undefined) {
   return useQuery({
-    queryKey: ['rooms'],
-    queryFn: getRooms,
+    queryKey: ['rooms', currentUserId],
+    queryFn: () => getRoomsWithMetadata(currentUserId!),
+    enabled: Boolean(currentUserId),
   })
 }

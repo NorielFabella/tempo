@@ -7,13 +7,11 @@ import type { MessageAttachmentWithUrl } from '../types/attachment'
 type AttachmentListProps = {
   attachments: MessageAttachmentWithUrl[]
   isOwnMessage: boolean
-  onImageLoad?: () => void
 }
 
 export function AttachmentList({
   attachments,
   isOwnMessage,
-  onImageLoad,
 }: AttachmentListProps) {
   if (!attachments.length) {
     return null
@@ -50,7 +48,6 @@ export function AttachmentList({
                 alt={attachment.file_name}
                 className="max-h-80 w-full object-cover"
                 loading="lazy"
-                onLoad={onImageLoad}
               />
             </a>
           )
@@ -72,6 +69,7 @@ export function AttachmentList({
                 {formatAttachmentSize(attachment.file_size)}
               </span>
             </span>
+
             <span className="shrink-0 font-medium">Open</span>
           </a>
         )

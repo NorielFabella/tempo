@@ -204,6 +204,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_room: {
+        Args: { room_name: string }
+        Returns: {
+          created_at: string
+          created_by: string
+          id: string
+          is_group: boolean
+          name: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "rooms"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       is_room_member: { Args: { room_uuid: string }; Returns: boolean }
     }
     Enums: {
