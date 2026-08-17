@@ -138,7 +138,6 @@ export function ChatPage() {
 
   const {
     data: messageAttachments = [],
-    isFetching: isMessageAttachmentsFetching,
     isError: areAttachmentsUnavailable,
     refetch: refetchAttachments,
   } = useMessageAttachments(messageIds)

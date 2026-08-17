@@ -47,18 +47,31 @@ function formatActivityTimestamp(timestamp: string) {
   })
 }
 
-function getMessagePreview(room: RoomWithMetadata) {
+function getMessagePreview(room: RoomWithMetadata, currentUserId: string | null) {
   const latestMessage = room.latest_message
 
   if (!latestMessage) {
     return 'No messages yet'
   }
 
+  const senderName = latestMessage.sender_name?.trim().split(/\s+/)[0]
+
+  const senderPrefix =
+    latestMessage.sender_id === currentUserId
+      ? 'You: '
+      : senderName
+        ? `${senderName}: `
+        : ''
+
   if (latestMessage.content.trim()) {
-    return latestMessage.content
+    return `${senderPrefix}${latestMessage.content}`
   }
 
-  return latestMessage.has_attachments ? '📎 Attachment' : 'No content'
+  if (latestMessage.has_attachments) {
+    return `${senderPrefix}📎 Attachment`
+  }
+
+  return `${senderPrefix}No content`
 }
 
 export function RoomList({
@@ -122,9 +135,7 @@ export function RoomList({
                         : 'text-muted-foreground'
                     }`}
                   >
-                    {latestMessage &&
-                      `${latestMessage.sender_id === currentUserId ? 'You: ' : ''}`}
-                    {getMessagePreview(room)}
+                    {getMessagePreview(room, currentUserId)}
                   </p>
 
                   {hasUnreadMessages && (

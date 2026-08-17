@@ -93,11 +93,69 @@ export async function getRoomsWithMetadata(
     }
   }
 
-  return rooms.map((room) => ({
-    ...room,
-    latest_message: latestMessageByRoom.get(room.id) ?? null,
-    unread_count: unreadCountByRoom.get(room.id) ?? 0,
-  }))
+  const latestMessages = [...latestMessageByRoom.values()]
+  const latestSenderIds = [
+    ...new Set(latestMessages.map((message) => message.sender_id)),
+  ]
+
+  const { data: senderProfiles, error: senderProfilesError } =
+    latestSenderIds.length > 0
+      ? await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', latestSenderIds)
+      : { data: [], error: null }
+
+  if (senderProfilesError) {
+    throw senderProfilesError
+  }
+
+  const senderProfilesById = new Map(
+    senderProfiles.map((profile) => [profile.id, profile]),
+  )
+
+  const roomsWithMetadata = rooms.map((room) => {
+    const latestMessage = latestMessageByRoom.get(room.id)
+
+    if (!latestMessage) {
+      return {
+        ...room,
+        latest_message: null,
+        unread_count: unreadCountByRoom.get(room.id) ?? 0,
+      }
+    }
+
+    const senderProfile = senderProfilesById.get(latestMessage.sender_id)
+
+    return {
+      ...room,
+      latest_message: {
+        ...latestMessage,
+        sender_name: senderProfile?.full_name ?? '',
+        sender_email: senderProfile?.email ?? '',
+      },
+      unread_count: unreadCountByRoom.get(room.id) ?? 0,
+    }
+  })
+
+  return roomsWithMetadata.sort((a, b) => {
+    if (!a.latest_message && !b.latest_message) {
+      return 0
+    }
+
+    if (!a.latest_message) {
+      return 1
+    }
+
+    if (!b.latest_message) {
+      return -1
+    }
+
+    return (
+      new Date(b.latest_message.created_at).getTime() -
+      new Date(a.latest_message.created_at).getTime()
+    )
+  })
 }
 
 export async function createRoom(name: string) {

@@ -6,6 +6,8 @@ export type LatestMessageInfo = {
   content: string
   created_at: string
   sender_id: string
+  sender_name: string
+  sender_email: string
   has_attachments: boolean
 }
 
