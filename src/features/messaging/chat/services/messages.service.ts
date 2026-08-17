@@ -54,3 +54,34 @@ export async function markRoomMessagesAsRead(
     throw error
   }
 }
+
+export async function deleteMessage(messageId: string): Promise<void> {
+  const { error } = await supabase
+    .from('messages')
+    .delete()
+    .eq('id', messageId)
+
+  if (error) {
+    throw error
+  }
+}
+
+export async function updateMessage(
+  messageId: string,
+  content: string,
+): Promise<Message> {
+  const { data, error } = await supabase
+    .from('messages')
+    .update({
+      content,
+    })
+    .eq('id', messageId)
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}

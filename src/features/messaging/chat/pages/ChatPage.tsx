@@ -7,6 +7,8 @@ import { AttachmentList } from '@/features/messaging/attachments/components/Atta
 import { AttachmentPicker } from '@/features/messaging/attachments/components/AttachmentPicker'
 import { useMessageAttachments } from '@/features/messaging/attachments/hooks/useMessageAttachments'
 import { validateAttachments } from '@/features/messaging/attachments/services/attachments.service'
+import { useDeleteMessage } from '@/features/messaging/chat/hooks/useDeleteMessage'
+import { useEditMessage } from '@/features/messaging/chat/hooks/useEditMessage'
 import { useMarkMessagesAsRead } from '@/features/messaging/chat/hooks/useMarkMessagesAsRead'
 import { useMessages } from '@/features/messaging/chat/hooks/useMessages'
 import { useSendMessage } from '@/features/messaging/chat/hooks/useSendMessage'
@@ -21,6 +23,7 @@ import { Button } from '@/shared/components/ui/Button'
 import { Card } from '@/shared/components/ui/Card'
 import { Input } from '@/shared/components/ui/Input'
 import { supabase } from '@/shared/supabase/client'
+import type { Message } from '../types/message'
 
 function getDisplayName(fullName: string | null, email: string) {
   if (fullName?.trim()) {
@@ -70,6 +73,8 @@ export function ChatPage() {
   } = useRooms(user?.id)
   const createRoomMutation = useCreateRoom()
   const sendMessageMutation = useSendMessage()
+  const deleteMessageMutation = useDeleteMessage()
+  const editMessageMutation = useEditMessage()
 
   const markMessagesAsReadMutation = useMarkMessagesAsRead()
   const queryClient = useQueryClient()
@@ -92,7 +97,10 @@ export function ChatPage() {
   const previousMessageIdsRef = useRef<string[]>([])
   const typingTimeoutRef = useRef<number | null>(null)
   const shouldScrollToRoomBottomRef = useRef(false)
-  // const isInitialRoomScrollPendingRef = useRef(false)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editingContent, setEditingContent] = useState('')
+  const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
 
   const activeRoomId = selectedRoomId ?? rooms?.[0]?.id ?? null
 
@@ -264,12 +272,21 @@ export function ChatPage() {
           event: '*',
           schema: 'public',
           table: 'messages',
-          filter: `room_id=eq.${activeRoomId}`,
         },
-        () => {
-          void queryClient.invalidateQueries({
-            queryKey: ['messages', activeRoomId],
-          })
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            queryClient.setQueryData<Message[]>(
+              ['messages', activeRoomId],
+              (currentMessages) =>
+                currentMessages?.filter(
+                  (message) => message.id !== payload.old.id,
+                ) ?? [],
+            )
+          } else {
+            void queryClient.invalidateQueries({
+              queryKey: ['messages', activeRoomId],
+            })
+          }
 
           void queryClient.invalidateQueries({
             queryKey: ['rooms', user?.id],
@@ -281,7 +298,7 @@ export function ChatPage() {
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [activeRoomId, queryClient])
+  }, [activeRoomId, queryClient, user?.id])
 
   useEffect(() => {
     if (!user?.id) {
@@ -548,6 +565,31 @@ export function ChatPage() {
     })
   }
 
+  async function handleEditMessage(messageId: string) {
+    const content = editingContent.trim()
+
+    if (!user || !activeRoomId || !content) {
+      return
+    }
+
+    setEditError(null)
+
+    try {
+      await editMessageMutation.mutateAsync({
+        messageId,
+        roomId: activeRoomId,
+        userId: user.id,
+        content,
+      })
+
+      setEditingMessageId(null)
+      setEditingContent('')
+      setOpenMessageMenuId(null)
+    } catch {
+      setEditError('The message could not be edited. Please try again.')
+    }
+  }
+
   function handleAddAttachments(files: File[]) {
     const nextAttachments = [...attachmentsToSend, ...files]
 
@@ -784,14 +826,74 @@ export function ChatPage() {
                           </p>
                         )}
 
-                        {message.content && (
-                          <p
-                            className={`${
-                              shouldShowSender ? 'mt-1' : ''
-                            } break-words`}
-                          >
-                            {message.content}
-                          </p>
+                        {editingMessageId === message.id ? (
+                          <div className="space-y-2">
+                            <textarea
+                              value={editingContent}
+                              onChange={(event) => {
+                                setEditingContent(event.target.value)
+                              }}
+                              className="w-full resize-none rounded-lg border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                              rows={3}
+                              autoFocus
+                              aria-label="Edit message"
+                              onKeyDown={(event) => {
+                                if (event.key === 'Escape') {
+                                  setEditingMessageId(null)
+                                  setEditingContent('')
+                                  setEditError(null)
+                                }
+
+                                if (event.key === 'Enter' && !event.shiftKey) {
+                                  event.preventDefault()
+                                  void handleEditMessage(message.id)
+                                }
+                              }}
+                            />
+
+                            {editError && (
+                              <p role="alert" className="text-xs text-red-500">
+                                {editError}
+                              </p>
+                            )}
+
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                className="text-xs font-medium underline-offset-2 hover:underline"
+                                onClick={() => {
+                                  setEditingMessageId(null)
+                                  setEditingContent('')
+                                  setEditError(null)
+                                }}
+                              >
+                                Cancel
+                              </button>
+
+                              <button
+                                type="button"
+                                className="text-xs font-medium underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={
+                                  editMessageMutation.isPending || !editingContent.trim()
+                                }
+                                onClick={() => {
+                                  void handleEditMessage(message.id)
+                                }}
+                              >
+                                {editMessageMutation.isPending ? 'Saving...' : 'Save'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          message.content && (
+                            <p
+                              className={`${
+                                shouldShowSender ? 'mt-1' : ''
+                              } break-words`}
+                            >
+                              {message.content}
+                            </p>
+                          )
                         )}
 
                         <AttachmentList
@@ -801,24 +903,77 @@ export function ChatPage() {
 
                         <div
                           className={`mt-1.5 flex items-center gap-2 text-xs ${
-                            isOwnMessage
-                              ? 'text-blue-100'
-                              : 'text-muted-foreground'
+                            isOwnMessage ? 'text-blue-100' : 'text-muted-foreground'
                           }`}
                         >
                           <span>
-                            {new Date(message.created_at).toLocaleTimeString(
-                              [],
-                              {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                              },
-                            )}
+                            {new Date(message.created_at).toLocaleTimeString([], {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                            })}
                           </span>
 
-                          {isOwnMessage && (
-                            <span>{message.read_at ? 'Seen' : 'Sent'}</span>
+                          {message.updated_at !== message.created_at && (
+                            <span>Edited</span>
                           )}
+
+                          {isOwnMessage && editingMessageId !== message.id && (
+                            <>
+                              <span>{message.read_at ? 'Seen' : 'Sent'}</span>
+
+                              <div className="relative ml-auto">
+                                <button
+                                  type="button"
+                                  className="rounded px-1.5 py-0.5 font-medium hover:bg-black/10"
+                                  aria-label="Message actions"
+                                  aria-expanded={openMessageMenuId === message.id}
+                                  onClick={() => {
+                                    setOpenMessageMenuId((current) =>
+                                      current === message.id ? null : message.id,
+                                    )
+                                  }}
+                                >
+                                  ⋮
+                                </button>
+
+                                {openMessageMenuId === message.id && (
+                                  <div className="absolute bottom-full right-0 z-10 mb-1 min-w-28 rounded-lg border bg-background p-1 text-foreground shadow-lg">
+                                    <button
+                                      type="button"
+                                      className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                                      onClick={() => {
+                                        setEditingMessageId(message.id)
+                                        setEditingContent(message.content)
+                                        setOpenMessageMenuId(null)
+                                        setEditError(null)
+                                      }}
+                                    >
+                                      Edit
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className="block w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                                      disabled={deleteMessageMutation.isPending}
+                                      onClick={() => {
+                                        setOpenMessageMenuId(null)
+
+                                        void deleteMessageMutation.mutateAsync({
+                                          messageId: message.id,
+                                          roomId: activeRoomId,
+                                          userId: user.id,
+                                        })
+                                      }}
+                                    >
+                                      {deleteMessageMutation.isPending ? 'Deleting...' : 'Delete'}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
+
+
                         </div>
                       </div>
                     </div>
