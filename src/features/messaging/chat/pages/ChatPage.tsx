@@ -65,6 +65,7 @@ function formatLastSeen(lastSeenAt: string | null) {
 
 export function ChatPage() {
   const { user } = useAuth()
+  const userId = user?.id
   const {
     data: rooms,
     isLoading: areRoomsLoading,
@@ -222,7 +223,6 @@ export function ChatPage() {
       setHasNewMessages(false)
 
       shouldScrollToRoomBottomRef.current = true
-      // isInitialRoomScrollPendingRef.current = true
     }
   }, [activeRoomId])
 
@@ -374,7 +374,7 @@ export function ChatPage() {
           })
 
           void queryClient.invalidateQueries({
-            queryKey: ['rooms', user?.id],
+            queryKey: ['rooms', userId],
           })
         },
       )
@@ -383,7 +383,7 @@ export function ChatPage() {
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [activeRoomId, queryClient])
+  }, [activeRoomId, queryClient, userId])
 
   useEffect(() => {
     if (!activeRoomId) {
@@ -414,14 +414,12 @@ export function ChatPage() {
   }, [activeRoomId, queryClient])
 
   useEffect(() => {
-    if (!user || !activeRoomId || !messages?.length || !isAtBottom) {
+    if (!userId || !activeRoomId || !messages?.length || !isAtBottom) {
       return
     }
 
-
-
     const hasUnreadMessages = messages.some(
-      (message) => message.sender_id !== user.id && message.read_at === null,
+      (message) => message.sender_id !== userId && message.read_at === null,
     )
 
     if (!hasUnreadMessages) {
@@ -431,10 +429,16 @@ export function ChatPage() {
     if (!markMessagesAsReadMutation.isPending) {
       void markMessagesAsReadMutation.mutate({
         roomId: activeRoomId,
-        userId: user.id,
+        userId,
       })
     }
-  }, [activeRoomId, isAtBottom, messages, user, markMessagesAsReadMutation])
+  }, [
+    activeRoomId,
+    isAtBottom,
+    messages,
+    userId,
+    markMessagesAsReadMutation,
+  ])
 
  useEffect(() => {
   if (
@@ -529,8 +533,6 @@ export function ChatPage() {
     ) {
       return
     }
-
-    // shouldScrollAfterAttachmentLoadRef.current = isAtBottomRef.current
 
     setSendError(null)
 
