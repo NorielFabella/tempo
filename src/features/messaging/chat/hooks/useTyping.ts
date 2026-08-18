@@ -1,10 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { getTypingUsers, setTypingStatus } from '../services/typing.service'
 
 export function useTyping(roomId: string) {
-  const queryClient = useQueryClient()
-
   const typingUsers = useQuery({
     queryKey: ['typing', roomId],
     queryFn: () => getTypingUsers(roomId),
@@ -22,12 +20,6 @@ export function useTyping(roomId: string) {
       userId: string
       isTyping: boolean
     }) => setTypingStatus(roomId, userId, isTyping),
-
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ['typing', roomId],
-      })
-    },
   })
 
   return {

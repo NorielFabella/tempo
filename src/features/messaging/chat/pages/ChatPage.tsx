@@ -4,14 +4,11 @@ import { useQueryClient } from '@tanstack/react-query'
 
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { AttachmentList } from '@/features/messaging/attachments/components/AttachmentList'
-import { AttachmentPicker } from '@/features/messaging/attachments/components/AttachmentPicker'
 import { useMessageAttachments } from '@/features/messaging/attachments/hooks/useMessageAttachments'
-import { validateAttachments } from '@/features/messaging/attachments/services/attachments.service'
 import { useDeleteMessage } from '@/features/messaging/chat/hooks/useDeleteMessage'
 import { useEditMessage } from '@/features/messaging/chat/hooks/useEditMessage'
 import { useMarkMessagesAsRead } from '@/features/messaging/chat/hooks/useMarkMessagesAsRead'
 import { useMessages } from '@/features/messaging/chat/hooks/useMessages'
-import { useSendMessage } from '@/features/messaging/chat/hooks/useSendMessage'
 import { useTyping } from '@/features/messaging/chat/hooks/useTyping'
 import { usePresence } from '@/features/messaging/presence/hooks/usePresence'
 import { RoomList } from '@/features/messaging/rooms/components/RoomList'
@@ -23,6 +20,7 @@ import { Button } from '@/shared/components/ui/Button'
 import { Card } from '@/shared/components/ui/Card'
 import { Input } from '@/shared/components/ui/Input'
 import { supabase } from '@/shared/supabase/client'
+import { MessageComposer } from '../components/MessageComposer'
 import type { Message } from '../types/message'
 
 function getDisplayName(fullName: string | null, email: string) {
@@ -73,7 +71,6 @@ export function ChatPage() {
     refetch: refetchRooms,
   } = useRooms(user?.id)
   const createRoomMutation = useCreateRoom()
-  const sendMessageMutation = useSendMessage()
   const deleteMessageMutation = useDeleteMessage()
   const editMessageMutation = useEditMessage()
 
@@ -83,11 +80,7 @@ export function ChatPage() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
   const [isMobileRoomListOpen, setIsMobileRoomListOpen] = useState(true)
   const [roomName, setRoomName] = useState('')
-  const [message, setMessage] = useState('')
-  const [attachmentsToSend, setAttachmentsToSend] = useState<File[]>([])
-  const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [roomError, setRoomError] = useState<string | null>(null)
-  const [sendError, setSendError] = useState<string | null>(null)
   const [hasNewMessages, setHasNewMessages] = useState(false)
   const [isAtBottom, setIsAtBottom] = useState(true)
 
@@ -96,7 +89,6 @@ export function ChatPage() {
   const isAtBottomRef = useRef(true)
   const previousRoomIdRef = useRef<string | null>(null)
   const previousMessageIdsRef = useRef<string[]>([])
-  const typingTimeoutRef = useRef<number | null>(null)
   const shouldScrollToRoomBottomRef = useRef(false)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState('')
@@ -112,9 +104,7 @@ export function ChatPage() {
     refetch: refetchMessages,
   } = useMessages(activeRoomId ?? '')
 
-  const { data: typingUsers, setTyping: setTypingMutation } = useTyping(
-    activeRoomId ?? '',
-  )
+  const { data: typingUsers } = useTyping(activeRoomId ?? '')
 
   const { data: roomMemberIds = [] } = useRoomMembers(activeRoomId ?? '')
 
@@ -414,7 +404,16 @@ export function ChatPage() {
   }, [activeRoomId, queryClient])
 
   useEffect(() => {
-    if (!userId || !activeRoomId || !messages?.length || !isAtBottom) {
+    const container = scrollContainerRef.current
+    const isChatVisible = (container?.getClientRects().length ?? 0) > 0
+
+    if (
+      !userId ||
+      !activeRoomId ||
+      !messages?.length ||
+      !isAtBottom ||
+      !isChatVisible
+    ) {
       return
     }
 
@@ -438,6 +437,7 @@ export function ChatPage() {
     messages,
     userId,
     markMessagesAsReadMutation,
+    isMobileRoomListOpen,
   ])
 
  useEffect(() => {
@@ -523,50 +523,6 @@ export function ChatPage() {
     }
   }
 
-  async function handleSendMessage() {
-    const content = message.trim()
-
-    if (
-      !user ||
-      !activeRoomId ||
-      (!content && attachmentsToSend.length === 0)
-    ) {
-      return
-    }
-
-    setSendError(null)
-
-    try {
-      const result = await sendMessageMutation.mutateAsync({
-        roomId: activeRoomId,
-        senderId: user.id,
-        content,
-        attachments: attachmentsToSend,
-      })
-
-      setMessage('')
-      setAttachmentsToSend([])
-      setAttachmentError(result.attachmentError)
-      isAtBottomRef.current = true
-      setIsAtBottom(true)
-      scrollToLatest()
-    } catch {
-      setSendError('Your message could not be sent. Please try again.')
-
-      return
-    }
-
-    if (typingTimeoutRef.current) {
-      window.clearTimeout(typingTimeoutRef.current)
-    }
-
-    await setTypingMutation.mutateAsync({
-      roomId: activeRoomId,
-      userId: user.id,
-      isTyping: false,
-    })
-  }
-
   async function handleEditMessage(messageId: string) {
     const content = editingContent.trim()
 
@@ -589,22 +545,6 @@ export function ChatPage() {
       setOpenMessageMenuId(null)
     } catch {
       setEditError('The message could not be edited. Please try again.')
-    }
-  }
-
-  function handleAddAttachments(files: File[]) {
-    const nextAttachments = [...attachmentsToSend, ...files]
-
-    try {
-      validateAttachments(nextAttachments)
-      setAttachmentsToSend(nextAttachments)
-      setAttachmentError(null)
-    } catch (error) {
-      setAttachmentError(
-        error instanceof Error
-          ? error.message
-          : 'The selected file could not be attached.',
-      )
     }
   }
 
@@ -1043,7 +983,7 @@ export function ChatPage() {
           )}
         </div>
 
-        <div className="border-t p-3 sm:p-4">
+        {/* <div className="border-t p-3 sm:p-4">
           <div className="space-y-3">
             {sendError && (
               <p role="alert" className="text-sm text-red-600">
@@ -1081,32 +1021,54 @@ export function ChatPage() {
                     return
                   }
 
-                  void setTypingMutation.mutate({
-                    roomId: activeRoomId,
-                    userId: user.id,
-                    isTyping: value.length > 0,
-                  })
-
                   if (typingTimeoutRef.current) {
                     window.clearTimeout(typingTimeoutRef.current)
+                    typingTimeoutRef.current = null
                   }
 
-                  if (value.length > 0) {
-                    typingTimeoutRef.current = window.setTimeout(() => {
+                  if (value.length === 0) {
+                    if (isTypingRef.current) {
+                      isTypingRef.current = false
+
                       void setTypingMutation.mutate({
                         roomId: activeRoomId,
                         userId: user.id,
                         isTyping: false,
                       })
-                    }, 2000)
+                    }
+
+                    return
                   }
+
+                  if (!isTypingRef.current) {
+                    isTypingRef.current = true
+
+                    void setTypingMutation.mutate({
+                      roomId: activeRoomId,
+                      userId: user.id,
+                      isTyping: true,
+                    })
+                  }
+
+                  typingTimeoutRef.current = window.setTimeout(() => {
+                    isTypingRef.current = false
+
+                    void setTypingMutation.mutate({
+                      roomId: activeRoomId,
+                      userId: user.id,
+                      isTyping: false,
+                    })
+                  }, 2000)
                 }}
                 onBlur={() => {
                   if (typingTimeoutRef.current) {
                     window.clearTimeout(typingTimeoutRef.current)
+                    typingTimeoutRef.current = null
                   }
 
-                  if (user && activeRoomId) {
+                  if (isTypingRef.current && user && activeRoomId) {
+                    isTypingRef.current = false
+
                     void setTypingMutation.mutate({
                       roomId: activeRoomId,
                       userId: user.id,
@@ -1138,7 +1100,15 @@ export function ChatPage() {
               </Button>
             </div>
           </div>
-        </div>
+        </div> */}
+        <MessageComposer
+          activeRoomId={activeRoomId}
+          onMessageSent={() => {
+            isAtBottomRef.current = true
+            setIsAtBottom(true)
+            scrollToLatest()
+          }}
+        />
       </Card>
     </div>
   )
