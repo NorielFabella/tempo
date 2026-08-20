@@ -1,3 +1,258 @@
+import { CalendarDays, Clock3, Mail, UserCircle } from 'lucide-react'
+
+import { useProfile } from '@/features/profile/hooks/useProfile'
+import { Button } from '@/shared/components/ui/Button'
+import { Card } from '@/shared/components/ui/Card'
+
+function getInitials(fullName: string | null, email: string) {
+  if (fullName?.trim()) {
+    const parts = fullName.trim().split(/\s+/)
+
+    return parts
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('')
+  }
+
+  return email.charAt(0).toUpperCase()
+}
+
+function formatDate(date: string | null) {
+  if (!date) {
+    return 'Not available'
+  }
+
+  return new Date(date).toLocaleDateString([], {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
+function formatLastSeen(lastSeenAt: string | null) {
+  if (!lastSeenAt) {
+    return 'Never'
+  }
+
+  const lastSeen = new Date(lastSeenAt)
+  const now = new Date()
+  const diffMs = Math.max(0, now.getTime() - lastSeen.getTime())
+  const diffMinutes = Math.floor(diffMs / 60_000)
+
+  if (diffMinutes < 1) {
+    return 'Just now'
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60)
+
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+  }
+
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffDays < 7) {
+    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+  }
+
+  return lastSeen.toLocaleDateString([], {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 export function ProfilePage() {
-  return <h1>Profile</h1>
+  const { data: profile, isLoading, isError, refetch } = useProfile()
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto w-full max-w-3xl space-y-6">
+        <div>
+          <div className="h-9 w-32 animate-pulse rounded-lg bg-slate-200" />
+          <div className="mt-2 h-5 w-64 animate-pulse rounded-lg bg-slate-100" />
+        </div>
+
+        <Card className="p-6 sm:p-8">
+          <div className="flex flex-col items-center gap-5 sm:flex-row">
+            <div className="h-24 w-24 animate-pulse rounded-full bg-slate-200" />
+
+            <div className="w-full space-y-3 sm:w-auto">
+              <div className="h-7 w-40 animate-pulse rounded-lg bg-slate-200" />
+              <div className="h-5 w-56 animate-pulse rounded-lg bg-slate-100" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="space-y-5">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="h-12 animate-pulse rounded-lg bg-slate-100" />
+            ))}
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  if (isError || !profile) {
+    return (
+      <div className="mx-auto flex min-h-[50vh] w-full max-w-md items-center justify-center">
+        <Card className="w-full p-6 text-center sm:p-8">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+            <UserCircle className="h-6 w-6" />
+          </div>
+
+          <h1 className="mt-4 text-xl font-semibold text-slate-900">
+            Profile unavailable
+          </h1>
+
+          <p className="mt-2 text-sm text-slate-600">
+            We could not load your profile information. Please try again.
+          </p>
+
+          <Button
+            type="button"
+            variant="secondary"
+            className="mt-5"
+            onClick={() => {
+              void refetch()
+            }}
+          >
+            Try again
+          </Button>
+        </Card>
+      </div>
+    )
+  }
+
+  const displayName = profile.full_name?.trim() || 'Tempo User'
+  const initials = getInitials(profile.full_name, profile.email)
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+          Profile
+        </h1>
+
+        <p className="mt-2 text-slate-600">
+          View your account information and activity details.
+        </p>
+      </div>
+
+      <Card className="overflow-hidden">
+        <div className="border-b border-slate-200 bg-slate-50 px-6 py-8 sm:px-8">
+          <div className="flex flex-col items-center gap-5 sm:flex-row">
+            {profile.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={`${displayName}'s avatar`}
+                className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-sm"
+              />
+            ) : (
+              <div
+                aria-hidden="true"
+                className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-4 border-white bg-slate-900 text-2xl font-semibold text-white shadow-sm"
+              >
+                {initials}
+              </div>
+            )}
+
+            <div className="min-w-0 text-center sm:text-left">
+              <h2 className="truncate text-2xl font-semibold text-slate-900">
+                {displayName}
+              </h2>
+
+              <p className="mt-1 flex items-center justify-center gap-2 break-all text-sm text-slate-600 sm:justify-start">
+                <Mail className="h-4 w-4 shrink-0" />
+                {profile.email}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 p-6 sm:grid-cols-2 sm:p-8">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                <CalendarDays className="h-5 w-5" />
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-500">
+                  Member since
+                </p>
+                <p className="mt-1 truncate font-medium text-slate-900">
+                  {formatDate(profile.created_at)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                <Clock3 className="h-5 w-5" />
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-500">
+                  Last seen
+                </p>
+                <p className="mt-1 truncate font-medium text-slate-900">
+                  {formatLastSeen(profile.last_seen_at)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6 sm:p-8">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+            <UserCircle className="h-5 w-5" />
+          </div>
+
+          <div>
+            <h2 className="font-semibold text-slate-900">
+              Account information
+            </h2>
+
+            <p className="text-sm text-slate-500">
+              Information associated with your Tempo account.
+            </p>
+          </div>
+        </div>
+
+        <dl className="mt-6 divide-y divide-slate-200">
+          <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+            <dt className="text-sm font-medium text-slate-500">Full name</dt>
+            <dd className="break-words text-sm text-slate-900 sm:text-right">
+              {profile.full_name?.trim() || 'Not set'}
+            </dd>
+          </div>
+
+          <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+            <dt className="text-sm font-medium text-slate-500">Email</dt>
+            <dd className="break-all text-sm text-slate-900 sm:text-right">
+              {profile.email}
+            </dd>
+          </div>
+
+          <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+            <dt className="text-sm font-medium text-slate-500">Account created</dt>
+            <dd className="text-sm text-slate-900 sm:text-right">
+              {formatDate(profile.created_at)}
+            </dd>
+          </div>
+        </dl>
+      </Card>
+    </div>
+  )
 }

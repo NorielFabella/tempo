@@ -494,7 +494,7 @@ export function ChatPage() {
   // changing the message layout before ending initial positioning.
   const timeoutId = window.setTimeout(() => {
     shouldScrollToRoomBottomRef.current = false
-  }, 2000)
+  }, 3000)
 
   return () => {
     resizeObserver.disconnect()
@@ -983,124 +983,6 @@ export function ChatPage() {
           )}
         </div>
 
-        {/* <div className="border-t p-3 sm:p-4">
-          <div className="space-y-3">
-            {sendError && (
-              <p role="alert" className="text-sm text-red-600">
-                {sendError}
-              </p>
-            )}
-
-            <AttachmentPicker
-              attachments={attachmentsToSend}
-              disabled={sendMessageMutation.isPending || !activeRoomId}
-              error={attachmentError}
-              onAdd={handleAddAttachments}
-              onRemove={(index) => {
-                setAttachmentsToSend((attachments) =>
-                  attachments.filter(
-                    (_, attachmentIndex) => attachmentIndex !== index,
-                  ),
-                )
-                setAttachmentError(null)
-              }}
-            />
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Input
-                placeholder="Type a message..."
-                aria-label="Message"
-                className="min-w-0 flex-1"
-                value={message}
-                onChange={(event) => {
-                  const value = event.target.value
-
-                  setMessage(value)
-
-                  if (!user || !activeRoomId) {
-                    return
-                  }
-
-                  if (typingTimeoutRef.current) {
-                    window.clearTimeout(typingTimeoutRef.current)
-                    typingTimeoutRef.current = null
-                  }
-
-                  if (value.length === 0) {
-                    if (isTypingRef.current) {
-                      isTypingRef.current = false
-
-                      void setTypingMutation.mutate({
-                        roomId: activeRoomId,
-                        userId: user.id,
-                        isTyping: false,
-                      })
-                    }
-
-                    return
-                  }
-
-                  if (!isTypingRef.current) {
-                    isTypingRef.current = true
-
-                    void setTypingMutation.mutate({
-                      roomId: activeRoomId,
-                      userId: user.id,
-                      isTyping: true,
-                    })
-                  }
-
-                  typingTimeoutRef.current = window.setTimeout(() => {
-                    isTypingRef.current = false
-
-                    void setTypingMutation.mutate({
-                      roomId: activeRoomId,
-                      userId: user.id,
-                      isTyping: false,
-                    })
-                  }, 2000)
-                }}
-                onBlur={() => {
-                  if (typingTimeoutRef.current) {
-                    window.clearTimeout(typingTimeoutRef.current)
-                    typingTimeoutRef.current = null
-                  }
-
-                  if (isTypingRef.current && user && activeRoomId) {
-                    isTypingRef.current = false
-
-                    void setTypingMutation.mutate({
-                      roomId: activeRoomId,
-                      userId: user.id,
-                      isTyping: false,
-                    })
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    void handleSendMessage()
-                  }
-                }}
-              />
-
-              <Button
-                type="button"
-                className="w-full sm:w-auto"
-                onClick={() => {
-                  void handleSendMessage()
-                }}
-                disabled={
-                  sendMessageMutation.isPending ||
-                  (!message.trim() && attachmentsToSend.length === 0) ||
-                  !activeRoomId
-                }
-              >
-                {sendMessageMutation.isPending ? 'Sending...' : 'Send'}
-              </Button>
-            </div>
-          </div>
-        </div> */}
         <MessageComposer
           activeRoomId={activeRoomId}
           onMessageSent={() => {
