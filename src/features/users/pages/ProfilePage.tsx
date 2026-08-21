@@ -73,17 +73,17 @@ export function ProfilePage() {
     return (
       <div className="mx-auto w-full max-w-3xl space-y-6">
         <div>
-          <div className="h-9 w-32 animate-pulse rounded-lg bg-slate-200" />
-          <div className="mt-2 h-5 w-64 animate-pulse rounded-lg bg-slate-100" />
+          <div className="h-9 w-32 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+          <div className="mt-2 h-5 w-64 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800/70" />
         </div>
 
         <Card className="p-6 sm:p-8">
           <div className="flex flex-col items-center gap-5 sm:flex-row">
-            <div className="h-24 w-24 animate-pulse rounded-full bg-slate-200" />
+            <div className="h-24 w-24 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
 
             <div className="w-full space-y-3 sm:w-auto">
-              <div className="h-7 w-40 animate-pulse rounded-lg bg-slate-200" />
-              <div className="h-5 w-56 animate-pulse rounded-lg bg-slate-100" />
+              <div className="h-7 w-40 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+              <div className="h-5 w-56 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800/70" />
             </div>
           </div>
         </Card>
@@ -91,7 +91,10 @@ export function ProfilePage() {
         <Card className="p-6">
           <div className="space-y-5">
             {[1, 2, 3].map((item) => (
-              <div key={item} className="h-12 animate-pulse rounded-lg bg-slate-100" />
+              <div
+                key={item}
+                className="h-12 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800/70"
+              />
             ))}
           </div>
         </Card>
@@ -103,15 +106,15 @@ export function ProfilePage() {
     return (
       <div className="mx-auto flex min-h-[50vh] w-full max-w-md items-center justify-center">
         <Card className="w-full p-6 text-center sm:p-8">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400">
             <UserCircle className="h-6 w-6" />
           </div>
 
-          <h1 className="mt-4 text-xl font-semibold text-slate-900">
+          <h1 className="mt-4 text-xl font-semibold text-slate-900 dark:text-slate-100">
             Profile unavailable
           </h1>
 
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
             We could not load your profile information. Please try again.
           </p>
 
@@ -136,39 +139,39 @@ export function ProfilePage() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
           Profile
         </h1>
 
-        <p className="mt-2 text-slate-600">
+        <p className="mt-2 text-slate-600 dark:text-slate-400">
           View your account information and activity details.
         </p>
       </div>
 
       <Card className="overflow-hidden">
-        <div className="border-b border-slate-200 bg-slate-50 px-6 py-8 sm:px-8">
+        <div className="border-b border-slate-200 bg-slate-50 px-6 py-8 dark:border-slate-800 dark:bg-slate-950 sm:px-8">
           <div className="flex flex-col items-center gap-5 sm:flex-row">
             {profile.avatar_url ? (
               <img
                 src={profile.avatar_url}
                 alt={`${displayName}'s avatar`}
-                className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-sm"
+                className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-sm dark:border-slate-800"
               />
             ) : (
               <div
                 aria-hidden="true"
-                className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-4 border-white bg-slate-900 text-2xl font-semibold text-white shadow-sm"
+                className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-4 border-white bg-slate-900 text-2xl font-semibold text-white shadow-sm dark:border-slate-800 dark:bg-slate-700"
               >
                 {initials}
               </div>
             )}
 
             <div className="min-w-0 text-center sm:text-left">
-              <h2 className="truncate text-2xl font-semibold text-slate-900">
+              <h2 className="truncate text-2xl font-semibold text-slate-900 dark:text-slate-100">
                 {displayName}
               </h2>
 
-              <p className="mt-1 flex items-center justify-center gap-2 break-all text-sm text-slate-600 sm:justify-start">
+              <p className="mt-1 flex items-center justify-center gap-2 break-all text-sm text-slate-600 dark:text-slate-400 sm:justify-start">
                 <Mail className="h-4 w-4 shrink-0" />
                 {profile.email}
               </p>
@@ -177,34 +180,36 @@ export function ProfilePage() {
         </div>
 
         <div className="grid gap-4 p-6 sm:grid-cols-2 sm:p-8">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 <CalendarDays className="h-5 w-5" />
               </div>
 
               <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-500">
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
                   Member since
                 </p>
-                <p className="mt-1 truncate font-medium text-slate-900">
+
+                <p className="mt-1 truncate font-medium text-slate-900 dark:text-slate-100">
                   {formatDate(profile.created_at)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 <Clock3 className="h-5 w-5" />
               </div>
 
               <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-500">
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
                   Last seen
                 </p>
-                <p className="mt-1 truncate font-medium text-slate-900">
+
+                <p className="mt-1 truncate font-medium text-slate-900 dark:text-slate-100">
                   {formatLastSeen(profile.last_seen_at)}
                 </p>
               </div>
@@ -215,39 +220,48 @@ export function ProfilePage() {
 
       <Card className="p-6 sm:p-8">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
             <UserCircle className="h-5 w-5" />
           </div>
 
           <div>
-            <h2 className="font-semibold text-slate-900">
+            <h2 className="font-semibold text-slate-900 dark:text-slate-100">
               Account information
             </h2>
 
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Information associated with your Tempo account.
             </p>
           </div>
         </div>
 
-        <dl className="mt-6 divide-y divide-slate-200">
+        <dl className="mt-6 divide-y divide-slate-200 dark:divide-slate-800">
           <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-            <dt className="text-sm font-medium text-slate-500">Full name</dt>
-            <dd className="break-words text-sm text-slate-900 sm:text-right">
+            <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Full name
+            </dt>
+
+            <dd className="break-words text-sm text-slate-900 dark:text-slate-100 sm:text-right">
               {profile.full_name?.trim() || 'Not set'}
             </dd>
           </div>
 
           <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-            <dt className="text-sm font-medium text-slate-500">Email</dt>
-            <dd className="break-all text-sm text-slate-900 sm:text-right">
+            <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Email
+            </dt>
+
+            <dd className="break-all text-sm text-slate-900 dark:text-slate-100 sm:text-right">
               {profile.email}
             </dd>
           </div>
 
           <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-            <dt className="text-sm font-medium text-slate-500">Account created</dt>
-            <dd className="text-sm text-slate-900 sm:text-right">
+            <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Account created
+            </dt>
+
+            <dd className="text-sm text-slate-900 dark:text-slate-100 sm:text-right">
               {formatDate(profile.created_at)}
             </dd>
           </div>
