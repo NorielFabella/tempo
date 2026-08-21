@@ -170,6 +170,20 @@ export async function createRoom(name: string) {
   return data
 }
 
+export async function getOrCreateDirectRoom(
+  otherUserId: string,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('get_or_create_direct_room', {
+    other_user_id: otherUserId,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
 export async function getRoomMemberIds(roomId: string): Promise<string[]> {
   const { data, error } = await supabase
     .from('room_members')
@@ -181,4 +195,18 @@ export async function getRoomMemberIds(roomId: string): Promise<string[]> {
   }
 
   return data.map((member) => member.user_id)
+}
+
+export async function addRoomMember(
+  roomId: string,
+  userId: string,
+): Promise<void> {
+  const { error } = await supabase.from('room_members').insert({
+    room_id: roomId,
+    user_id: userId,
+  })
+
+  if (error) {
+    throw error
+  }
 }

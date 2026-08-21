@@ -1,5 +1,12 @@
-import { CalendarDays, Clock3, Mail, UserCircle } from 'lucide-react'
+import {
+  CalendarDays,
+  Camera,
+  Clock3,
+  Mail,
+  UserCircle,
+} from 'lucide-react'
 
+import { useAvatarUpload } from '@/features/profile/hooks/useAvatarUpload'
 import { useProfile } from '@/features/profile/hooks/useProfile'
 import { Button } from '@/shared/components/ui/Button'
 import { Card } from '@/shared/components/ui/Card'
@@ -68,6 +75,19 @@ function formatLastSeen(lastSeenAt: string | null) {
 
 export function ProfilePage() {
   const { data: profile, isLoading, isError, refetch } = useProfile()
+  const avatarUpload = useAvatarUpload()
+
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+
+    event.target.value = ''
+
+    if (!file) {
+      return
+    }
+
+    avatarUpload.mutate(file)
+  }
 
   if (isLoading) {
     return (
@@ -151,20 +171,45 @@ export function ProfilePage() {
       <Card className="overflow-hidden">
         <div className="border-b border-slate-200 bg-slate-50 px-6 py-8 dark:border-slate-800 dark:bg-slate-950 sm:px-8">
           <div className="flex flex-col items-center gap-5 sm:flex-row">
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={`${displayName}'s avatar`}
-                className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-sm dark:border-slate-800"
-              />
-            ) : (
-              <div
-                aria-hidden="true"
-                className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-4 border-white bg-slate-900 text-2xl font-semibold text-white shadow-sm dark:border-slate-800 dark:bg-slate-700"
+            <div className="relative shrink-0">
+              {profile.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={`${displayName}'s avatar`}
+                  className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-sm dark:border-slate-800"
+                />
+              ) : (
+                <div
+                  aria-hidden="true"
+                  className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-slate-900 text-2xl font-semibold text-white shadow-sm dark:border-slate-800 dark:bg-slate-700"
+                >
+                  {initials}
+                </div>
+              )}
+
+              <label
+                className={[
+                  'absolute bottom-0 right-0 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full',
+                  'border-2 border-white bg-slate-900 text-white shadow-md',
+                  'transition-colors hover:bg-slate-700',
+                  'dark:border-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white',
+                  avatarUpload.isPending
+                    ? 'pointer-events-none opacity-60'
+                    : '',
+                ].join(' ')}
+                aria-label="Change profile picture"
               >
-                {initials}
-              </div>
-            )}
+                <Camera className="h-4 w-4" />
+
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  disabled={avatarUpload.isPending}
+                  onChange={handleAvatarChange}
+                />
+              </label>
+            </div>
 
             <div className="min-w-0 text-center sm:text-left">
               <h2 className="truncate text-2xl font-semibold text-slate-900 dark:text-slate-100">
@@ -175,6 +220,29 @@ export function ProfilePage() {
                 <Mail className="h-4 w-4 shrink-0" />
                 {profile.email}
               </p>
+
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                {avatarUpload.isPending
+                  ? 'Uploading profile picture...'
+                  : 'JPG, PNG, or WebP · Max 1 MB'}
+              </p>
+
+              {avatarUpload.isError && (
+                <p
+                  role="alert"
+                  className="mt-2 text-sm font-medium text-red-600 dark:text-red-400"
+                >
+                  {avatarUpload.error instanceof Error
+                    ? avatarUpload.error.message
+                    : 'Could not upload your profile picture.'}
+                </p>
+              )}
+
+              {avatarUpload.isSuccess && (
+                <p className="mt-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                  Profile picture updated.
+                </p>
+              )}
             </div>
           </div>
         </div>

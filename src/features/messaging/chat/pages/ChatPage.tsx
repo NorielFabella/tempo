@@ -11,6 +11,7 @@ import { useMarkMessagesAsRead } from '@/features/messaging/chat/hooks/useMarkMe
 import { useMessages } from '@/features/messaging/chat/hooks/useMessages'
 import { useTyping } from '@/features/messaging/chat/hooks/useTyping'
 import { usePresence } from '@/features/messaging/presence/hooks/usePresence'
+import { AddRoomMembers } from '@/features/messaging/rooms/components/AddRoomMembers'
 import { RoomList } from '@/features/messaging/rooms/components/RoomList'
 import { useCreateRoom } from '@/features/messaging/rooms/hooks/useCreateRoom'
 import { useRoomMembers } from '@/features/messaging/rooms/hooks/useRoomMembers'
@@ -19,6 +20,7 @@ import { useProfiles } from '@/features/profile/hooks/useProfiles'
 import { Button } from '@/shared/components/ui/Button'
 import { Card } from '@/shared/components/ui/Card'
 import { Input } from '@/shared/components/ui/Input'
+import { Modal } from '@/shared/components/ui/Modal'
 import { supabase } from '@/shared/supabase/client'
 import { MessageComposer } from '../components/MessageComposer'
 import type { Message } from '../types/message'
@@ -94,6 +96,7 @@ export function ChatPage() {
   const [editingContent, setEditingContent] = useState('')
   const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
+  const [isAddMembersOpen, setIsAddMembersOpen] = useState(false)
 
   const activeRoomId = selectedRoomId ?? rooms?.[0]?.id ?? null
 
@@ -653,7 +656,7 @@ export function ChatPage() {
             ←
           </Button>
 
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="truncate text-lg font-semibold">
               {selectedRoom?.name ??
                 (activeRoomId ? 'Direct Message' : 'Select a room')}
@@ -689,7 +692,21 @@ export function ChatPage() {
             </p>
           ) : null}
         </div>
+        {activeRoomId && selectedRoom?.is_group && (
+          <button
+            type="button"
+            aria-label="Add members"
+            className="shrink-0 rounded-lg px-2.5 py-2 text-lg leading-none text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => {
+              setIsAddMembersOpen(true)
+            }}
+          >
+            ⋮
+          </button>
+        )}
+
        </div>
+
         <div className="relative min-h-0 flex-1">
           <div
             ref={scrollContainerRef}
@@ -991,7 +1008,23 @@ export function ChatPage() {
             scrollToLatest()
           }}
         />
-      </Card>
-    </div>
-  )
+          </Card>
+
+        <Modal
+          open={isAddMembersOpen}
+          title="Add members"
+          onClose={() => {
+            setIsAddMembersOpen(false)
+          }}
+        >
+          {activeRoomId && (
+            <AddRoomMembers
+              roomId={activeRoomId}
+              currentUserId={user?.id ?? ''}
+              memberIds={roomMemberIds}
+            />
+          )}
+        </Modal>
+      </div>
+    )
 }

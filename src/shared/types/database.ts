@@ -220,7 +220,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_or_create_direct_room: {
+        Args: { other_user_id: string }
+        Returns: string
+      }
       is_room_member: { Args: { room_uuid: string }; Returns: boolean }
+      search_profiles: {
+        Args: { search_query: string }
+        Returns: {
+          avatar_url: string
+          email: string
+          full_name: string
+          id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

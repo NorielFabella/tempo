@@ -84,7 +84,7 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
             </h2>
 
             <p className="mt-1 text-sm text-slate-400">
-              Your messaging workspace
+              Chat
             </p>
           </div>
 
