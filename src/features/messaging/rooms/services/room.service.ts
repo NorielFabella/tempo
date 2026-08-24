@@ -35,6 +35,15 @@ export async function getRoomsWithMetadata(
 
   const roomIds = rooms.map((room) => room.id)
 
+  const { data: roomMembers, error: roomMembersError } = await supabase
+    .from('room_members')
+    .select('room_id, user_id')
+    .in('room_id', roomIds)
+
+  if (roomMembersError) {
+    throw roomMembersError
+  }
+
   const { data: messages, error: messagesError } = await supabase
     .from('messages')
     .select('id, room_id, sender_id, content, created_at, read_at')
@@ -114,14 +123,51 @@ export async function getRoomsWithMetadata(
     senderProfiles.map((profile) => [profile.id, profile]),
   )
 
+  const directMessageUserIds = [
+    ...new Set(
+      roomMembers
+        .filter((member) => member.user_id !== currentUserId)
+        .map((member) => member.user_id),
+    ),
+  ]
+
+  const { data: directMessageProfiles, error: directMessageProfilesError } =
+    directMessageUserIds.length > 0
+      ? await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', directMessageUserIds)
+      : { data: [], error: null }
+
+  if (directMessageProfilesError) {
+    throw directMessageProfilesError
+  }
+
+  const directMessageProfilesById = new Map(
+    directMessageProfiles.map((profile) => [profile.id, profile]),
+  )
+
   const roomsWithMetadata = rooms.map((room) => {
     const latestMessage = latestMessageByRoom.get(room.id)
+
+    const roomMembersForRoom = roomMembers.filter(
+      (member) => member.room_id === room.id,
+    )
+
+    const otherUserId =
+      roomMembersForRoom.find((member) => member.user_id !== currentUserId)
+        ?.user_id ?? null
+
+    const otherUserName = otherUserId
+      ? directMessageProfilesById.get(otherUserId)?.full_name ?? null
+      : null
 
     if (!latestMessage) {
       return {
         ...room,
         latest_message: null,
         unread_count: unreadCountByRoom.get(room.id) ?? 0,
+        other_user_name: otherUserName,
       }
     }
 
@@ -135,6 +181,7 @@ export async function getRoomsWithMetadata(
         sender_email: senderProfile?.email ?? '',
       },
       unread_count: unreadCountByRoom.get(room.id) ?? 0,
+      other_user_name: otherUserName,
     }
   })
 

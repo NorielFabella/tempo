@@ -117,7 +117,7 @@ export function RoomList({
                       hasUnreadMessages ? 'font-semibold' : 'font-medium'
                     }`}
                   >
-                    {room.name ?? 'Direct Message'}
+                    {room.name ?? room.other_user_name ?? 'Direct Message'}
                   </p>
 
                   {latestMessage && (

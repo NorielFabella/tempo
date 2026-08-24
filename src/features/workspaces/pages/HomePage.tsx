@@ -39,18 +39,18 @@ export function HomePage() {
             ? `, ${profile.full_name.split(' ')[0]}`
             : ''
         }!`}
-        description="Here's what's happening in your workspace."
+        // description="Here's what's happening in your workspace."
       />
 
       <section className="grid gap-4 sm:grid-cols-2">
         <StatCard
-          title="Conversations"
+          title="Chats"
           value={areRoomsLoading ? '...' : roomCount}
           icon={<MessageSquare className="h-7 w-7" />}
         />
 
         <StatCard
-          title="Online now"
+          title="Online"
           value={onlineUserCount}
           icon={<Users className="h-7 w-7" />}
         />
@@ -68,11 +68,11 @@ export function HomePage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-              Recent Conversations
+              Recent Chats
             </h2>
 
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Jump back into one of your rooms.
+              {/* Jump back into one of your chats. */}
             </p>
           </div>
 

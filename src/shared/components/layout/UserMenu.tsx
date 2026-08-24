@@ -1,6 +1,5 @@
-import { ChevronDown, LogOut, Settings, UserCircle } from 'lucide-react'
+import { ChevronDown, LogOut } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { signOut } from '@/features/auth/services/auth.service'
@@ -21,7 +20,6 @@ function getInitials(fullName: string | null | undefined, email: string) {
 }
 
 export function UserMenu() {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const { data: profile } = useProfile()
   const { onlineUserIds } = usePresence()
@@ -66,11 +64,6 @@ export function UserMenu() {
   const displayName = profile?.full_name?.trim() || 'Tempo User'
   const initials = getInitials(profile?.full_name, email)
   const isOnline = onlineUserIds.includes(user.id)
-
-  const handleNavigate = (path: string) => {
-    setIsOpen(false)
-    void navigate(path)
-  }
 
   const handleSignOut = async () => {
     setIsOpen(false)
@@ -166,32 +159,6 @@ export function UserMenu() {
                 </p>
               </div>
             </div>
-          </div>
-
-          <div className="p-1.5">
-            <button
-              type="button"
-              role="menuitem"
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-              onClick={() => {
-                handleNavigate('/app/profile')
-              }}
-            >
-              <UserCircle className="h-4 w-4" />
-              Profile
-            </button>
-
-            <button
-              type="button"
-              role="menuitem"
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-              onClick={() => {
-                handleNavigate('/app/settings')
-              }}
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </button>
           </div>
 
           <div className="border-t border-slate-200 p-1.5 dark:border-slate-800">

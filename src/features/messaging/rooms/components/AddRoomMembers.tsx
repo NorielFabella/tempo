@@ -46,13 +46,6 @@ export function AddRoomMembers({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="font-semibold">Add members</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Search for someone to add to this room.
-        </p>
-      </div>
-
       <ProfileSearch
         excludeUserIds={excludedUserIds}
         onSelectProfile={(profile) => {

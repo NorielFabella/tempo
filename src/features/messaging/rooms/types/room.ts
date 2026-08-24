@@ -14,4 +14,5 @@ export type LatestMessageInfo = {
 export type RoomWithMetadata = Room & {
   latest_message: LatestMessageInfo | null
   unread_count: number
+  other_user_name: string | null
 }

@@ -13,10 +13,13 @@ import { useTyping } from '@/features/messaging/chat/hooks/useTyping'
 import { usePresence } from '@/features/messaging/presence/hooks/usePresence'
 import { AddRoomMembers } from '@/features/messaging/rooms/components/AddRoomMembers'
 import { RoomList } from '@/features/messaging/rooms/components/RoomList'
+import { useCreateDirectRoom } from '@/features/messaging/rooms/hooks/useCreateDirectRoom'
 import { useCreateRoom } from '@/features/messaging/rooms/hooks/useCreateRoom'
 import { useRoomMembers } from '@/features/messaging/rooms/hooks/useRoomMembers'
 import { useRooms } from '@/features/messaging/rooms/hooks/useRooms'
+import { ProfileSearch } from '@/features/profile/components/ProfileSearch'
 import { useProfiles } from '@/features/profile/hooks/useProfiles'
+import type { ProfileSearchResult } from '@/features/profile/types/profile'
 import { Button } from '@/shared/components/ui/Button'
 import { Card } from '@/shared/components/ui/Card'
 import { Input } from '@/shared/components/ui/Input'
@@ -73,8 +76,10 @@ export function ChatPage() {
     refetch: refetchRooms,
   } = useRooms(user?.id)
   const createRoomMutation = useCreateRoom()
+  const createDirectRoomMutation = useCreateDirectRoom()
   const deleteMessageMutation = useDeleteMessage()
   const editMessageMutation = useEditMessage()
+
 
   const markMessagesAsReadMutation = useMarkMessagesAsRead()
   const queryClient = useQueryClient()
@@ -97,6 +102,8 @@ export function ChatPage() {
   const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const [isAddMembersOpen, setIsAddMembersOpen] = useState(false)
+  const [isNewMessageOpen, setIsNewMessageOpen] = useState(false)
+  const [directMessageError, setDirectMessageError] = useState<string | null>(null)
 
   const activeRoomId = selectedRoomId ?? rooms?.[0]?.id ?? null
 
@@ -158,6 +165,13 @@ export function ChatPage() {
 
   const otherRoomMemberIds = roomMemberIds.filter(
     (userId) => userId !== user?.id,
+  )
+
+  const { data: otherRoomProfiles = [] } = useProfiles(otherRoomMemberIds)
+
+  const directMessageProfile = useMemo(
+    () => otherRoomProfiles[0] ?? null,
+    [otherRoomProfiles],
   )
 
   const otherOnlineUserIds = onlineUserIds.filter(
@@ -319,6 +333,61 @@ export function ChatPage() {
       void supabase.removeChannel(channel)
     }
   }, [user?.id, queryClient])
+
+  useEffect(() => {
+    if (!user?.id) {
+      return
+    }
+
+    const channel = supabase
+      .channel(`room-members-list:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_members',
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['rooms', user.id],
+          })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [user?.id, queryClient])
+
+  useEffect(() => {
+    if (!activeRoomId) {
+      return
+    }
+
+    const channel = supabase
+      .channel(`room-members:${activeRoomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_members',
+          filter: `room_id=eq.${activeRoomId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['room-members', activeRoomId],
+          })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [activeRoomId, queryClient])
 
   useEffect(() => {
     if (!user?.id) {
@@ -526,6 +595,30 @@ export function ChatPage() {
     }
   }
 
+  async function handleStartDirectMessage(profile: ProfileSearchResult) {
+    if (!user) {
+      return
+    }
+
+    setDirectMessageError(null)
+
+    try {
+      const roomId = await createDirectRoomMutation.mutateAsync(profile.id)
+
+      await queryClient.invalidateQueries({
+        queryKey: ['rooms', user.id],
+      })
+
+      setSelectedRoomId(roomId)
+      setIsNewMessageOpen(false)
+      setIsMobileRoomListOpen(false)
+    } catch {
+      setDirectMessageError(
+        'The conversation could not be opened. Please try again.',
+      )
+    }
+  }
+
   async function handleEditMessage(messageId: string) {
     const content = editingContent.trim()
 
@@ -563,6 +656,17 @@ export function ChatPage() {
           <h2 className="text-lg font-semibold">Rooms</h2>
 
           <div className="mt-4 space-y-2">
+            <Button
+              type="button"
+              className="w-full"
+              onClick={() => {
+                setDirectMessageError(null)
+                setIsNewMessageOpen(true)
+              }}
+            >
+              New Message
+            </Button>
+
             <Input
               placeholder="Room name..."
               aria-label="New room name"
@@ -658,8 +762,11 @@ export function ChatPage() {
 
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-lg font-semibold">
-              {selectedRoom?.name ??
-                (activeRoomId ? 'Direct Message' : 'Select a room')}
+              {selectedRoom?.is_group
+                ? selectedRoom.name
+                : activeRoomId
+                  ? directMessageProfile?.full_name?.trim() || 'Direct Message'
+                  : 'Select a room'}
             </h2>
 
           {!activeRoomId ? (
@@ -1024,6 +1131,43 @@ export function ChatPage() {
               memberIds={roomMemberIds}
             />
           )}
+        </Modal>
+
+        <Modal
+          open={isNewMessageOpen}
+          title="New message"
+          onClose={() => {
+            setIsNewMessageOpen(false)
+            setDirectMessageError(null)
+          }}
+        >
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold">Start a conversation</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Search for someone to start a direct conversation with.
+              </p>
+            </div>
+
+            <ProfileSearch
+              excludeUserIds={user?.id ? [user.id] : []}
+              onSelectProfile={(profile) => {
+                void handleStartDirectMessage(profile)
+              }}
+            />
+
+            {createDirectRoomMutation.isPending && (
+              <p className="text-sm text-muted-foreground">
+                Opening conversation...
+              </p>
+            )}
+
+            {directMessageError && (
+              <p role="alert" className="text-sm text-red-600">
+                {directMessageError}
+              </p>
+            )}
+          </div>
         </Modal>
       </div>
     )
