@@ -12,6 +12,7 @@ import { useMessages } from '@/features/messaging/chat/hooks/useMessages'
 import { useTyping } from '@/features/messaging/chat/hooks/useTyping'
 import { usePresence } from '@/features/messaging/presence/hooks/usePresence'
 import { AddRoomMembers } from '@/features/messaging/rooms/components/AddRoomMembers'
+import { DeleteRoomModal } from '@/features/messaging/rooms/components/DeleteRoomModal'
 import { EditRoomModal } from '@/features/messaging/rooms/components/EditRoomModal'
 import { RoomList } from '@/features/messaging/rooms/components/RoomList'
 import { useCreateDirectRoom } from '@/features/messaging/rooms/hooks/useCreateDirectRoom'
@@ -104,12 +105,15 @@ export function ChatPage() {
   const [editError, setEditError] = useState<string | null>(null)
   const [isAddMembersOpen, setIsAddMembersOpen] = useState(false)
   const [isEditRoomOpen, setIsEditRoomOpen] = useState(false)
+  const [isDeleteRoomOpen, setIsDeleteRoomOpen] = useState(false)
   const [isRoomMenuOpen, setIsRoomMenuOpen] = useState(false)
   const roomMenuRef = useRef<HTMLDivElement>(null)
   const [isNewMessageOpen, setIsNewMessageOpen] = useState(false)
   const [directMessageError, setDirectMessageError] = useState<string | null>(null)
 
-  const activeRoomId = selectedRoomId ?? rooms?.[0]?.id ?? null
+  const isSelectedRoomValid = rooms?.some((room) => room.id === selectedRoomId)
+  const activeRoomId =
+    (isSelectedRoomValid ? selectedRoomId : null) ?? rooms?.[0]?.id ?? null
 
   const {
     data: messages,
@@ -869,6 +873,16 @@ export function ChatPage() {
                 >
                   Add members
                 </button>
+                <button
+                  type="button"
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                  onClick={() => {
+                    setIsRoomMenuOpen(false)
+                    setIsDeleteRoomOpen(true)
+                  }}
+                >
+                  Delete room
+                </button>
               </div>
             )}
           </div>
@@ -1200,6 +1214,29 @@ export function ChatPage() {
           room={selectedRoom ?? null}
           onClose={() => {
             setIsEditRoomOpen(false)
+          }}
+        />
+
+        <DeleteRoomModal
+          open={isDeleteRoomOpen}
+          room={selectedRoom ?? null}
+          onClose={() => {
+            setIsDeleteRoomOpen(false)
+          }}
+          onDeleted={(deletedRoomId) => {
+            const isMobile =
+              typeof window !== 'undefined' &&
+              !window.matchMedia('(min-width: 1024px)').matches
+
+            if (isMobile) {
+              setSelectedRoomId(null)
+              setIsMobileRoomListOpen(true)
+            } else {
+              const remainingRooms = (rooms ?? []).filter(
+                (room) => room.id !== deletedRoomId,
+              )
+              setSelectedRoomId(remainingRooms[0]?.id ?? null)
+            }
           }}
         />
 
