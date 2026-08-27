@@ -103,6 +103,7 @@ export function ChatPage() {
   const [editingContent, setEditingContent] = useState('')
   const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
+  const messageMenuRef = useRef<HTMLDivElement>(null)
   const [isAddMembersOpen, setIsAddMembersOpen] = useState(false)
   const [isEditRoomOpen, setIsEditRoomOpen] = useState(false)
   const [isDeleteRoomOpen, setIsDeleteRoomOpen] = useState(false)
@@ -258,6 +259,35 @@ export function ChatPage() {
   }, [isRoomMenuOpen])
 
   useEffect(() => {
+    if (!openMessageMenuId) {
+      return
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        messageMenuRef.current &&
+        !messageMenuRef.current.contains(event.target as Node)
+      ) {
+        setOpenMessageMenuId(null)
+      }
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenMessageMenuId(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [openMessageMenuId])
+
+  useEffect(() => {
     if (activeRoomId !== previousRoomIdRef.current) {
       previousRoomIdRef.current = activeRoomId
       previousMessageIdsRef.current = []
@@ -357,6 +387,33 @@ export function ChatPage() {
           event: '*',
           schema: 'public',
           table: 'messages',
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['rooms', user.id],
+          })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [user?.id, queryClient])
+
+  useEffect(() => {
+    if (!user?.id) {
+      return
+    }
+
+    const channel = supabase
+      .channel(`rooms-list:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'rooms',
         },
         () => {
           void queryClient.invalidateQueries({
@@ -885,7 +942,7 @@ export function ChatPage() {
                     setIsDeleteRoomOpen(true)
                   }}
                 >
-                  {selectedRoom.is_group ? 'Delete room' : 'Delete conversation'}
+                  {selectedRoom.is_group ? 'Delete room' : 'Delete Conversation'}
                 </button>
               </div>
             )}
@@ -1067,7 +1124,14 @@ export function ChatPage() {
                             <>
                               <span>{message.read_at ? 'Seen' : 'Sent'}</span>
 
-                              <div className="relative ml-auto">
+                              <div
+                                className="relative ml-auto"
+                                ref={
+                                  openMessageMenuId === message.id
+                                    ? messageMenuRef
+                                    : undefined
+                                }
+                              >
                                 <button
                                   type="button"
                                   className="rounded px-1.5 py-0.5 font-medium hover:bg-black/10"

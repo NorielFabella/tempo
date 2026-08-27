@@ -211,21 +211,12 @@ export async function getRoomsWithMetadata(
   })
 
   return roomsWithMetadata.sort((a, b) => {
-    if (!a.latest_message && !b.latest_message) {
-      return 0
-    }
-
-    if (!a.latest_message) {
-      return 1
-    }
-
-    if (!b.latest_message) {
-      return -1
-    }
+    const aActivityTimestamp = a.latest_message?.created_at ?? a.created_at
+    const bActivityTimestamp = b.latest_message?.created_at ?? b.created_at
 
     return (
-      new Date(b.latest_message.created_at).getTime() -
-      new Date(a.latest_message.created_at).getTime()
+      new Date(bActivityTimestamp).getTime() -
+      new Date(aActivityTimestamp).getTime()
     )
   })
 }
