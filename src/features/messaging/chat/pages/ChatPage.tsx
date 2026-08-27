@@ -12,6 +12,7 @@ import { useMessages } from '@/features/messaging/chat/hooks/useMessages'
 import { useTyping } from '@/features/messaging/chat/hooks/useTyping'
 import { usePresence } from '@/features/messaging/presence/hooks/usePresence'
 import { AddRoomMembers } from '@/features/messaging/rooms/components/AddRoomMembers'
+import { EditRoomModal } from '@/features/messaging/rooms/components/EditRoomModal'
 import { RoomList } from '@/features/messaging/rooms/components/RoomList'
 import { useCreateDirectRoom } from '@/features/messaging/rooms/hooks/useCreateDirectRoom'
 import { useCreateRoom } from '@/features/messaging/rooms/hooks/useCreateRoom'
@@ -102,6 +103,9 @@ export function ChatPage() {
   const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const [isAddMembersOpen, setIsAddMembersOpen] = useState(false)
+  const [isEditRoomOpen, setIsEditRoomOpen] = useState(false)
+  const [isRoomMenuOpen, setIsRoomMenuOpen] = useState(false)
+  const roomMenuRef = useRef<HTMLDivElement>(null)
   const [isNewMessageOpen, setIsNewMessageOpen] = useState(false)
   const [directMessageError, setDirectMessageError] = useState<string | null>(null)
 
@@ -219,6 +223,35 @@ export function ChatPage() {
       setHasNewMessages(false)
     }
   }
+
+  useEffect(() => {
+    if (!isRoomMenuOpen) {
+      return
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        roomMenuRef.current &&
+        !roomMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsRoomMenuOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsRoomMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isRoomMenuOpen])
 
   useEffect(() => {
     if (activeRoomId !== previousRoomIdRef.current) {
@@ -731,6 +764,7 @@ export function ChatPage() {
                   onSelectRoom={(roomId) => {
                     setSelectedRoomId(roomId)
                     setIsMobileRoomListOpen(false)
+                    setIsRoomMenuOpen(false)
                   }}
                 />
               ) : (
@@ -800,16 +834,44 @@ export function ChatPage() {
           ) : null}
         </div>
         {activeRoomId && selectedRoom?.is_group && (
-          <button
-            type="button"
-            aria-label="Add members"
-            className="shrink-0 rounded-lg px-2.5 py-2 text-lg leading-none text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={() => {
-              setIsAddMembersOpen(true)
-            }}
-          >
-            ⋮
-          </button>
+          <div className="relative shrink-0" ref={roomMenuRef}>
+            <button
+              type="button"
+              aria-label="Room actions"
+              aria-expanded={isRoomMenuOpen}
+              className="shrink-0 rounded-lg px-2.5 py-2 text-lg leading-none text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => {
+                setIsRoomMenuOpen((current) => !current)
+              }}
+            >
+              ⋮
+            </button>
+
+            {isRoomMenuOpen && (
+              <div className="absolute right-0 top-full z-10 mt-1 min-w-36 rounded-lg border bg-background p-1 text-foreground shadow-lg">
+                <button
+                  type="button"
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                  onClick={() => {
+                    setIsRoomMenuOpen(false)
+                    setIsEditRoomOpen(true)
+                  }}
+                >
+                  Rename room
+                </button>
+                <button
+                  type="button"
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                  onClick={() => {
+                    setIsRoomMenuOpen(false)
+                    setIsAddMembersOpen(true)
+                  }}
+                >
+                  Add members
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
        </div>
@@ -1132,6 +1194,14 @@ export function ChatPage() {
             />
           )}
         </Modal>
+
+        <EditRoomModal
+          open={isEditRoomOpen}
+          room={selectedRoom ?? null}
+          onClose={() => {
+            setIsEditRoomOpen(false)
+          }}
+        />
 
         <Modal
           open={isNewMessageOpen}

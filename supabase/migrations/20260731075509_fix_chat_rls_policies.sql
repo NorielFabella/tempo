@@ -24,6 +24,7 @@ grant execute on function public.is_room_member(uuid) to authenticated;
 
 drop policy if exists "Users can view their rooms" on rooms;
 drop policy if exists "Authenticated users can create rooms" on rooms;
+drop policy if exists "Users can update their group rooms" on rooms;
 
 drop policy if exists "Users can view members of their rooms" on room_members;
 drop policy if exists "Room creators can add members" on room_members;
@@ -49,6 +50,19 @@ for insert
 to authenticated
 with check (
     auth.uid() = created_by
+);
+
+create policy "Users can update their group rooms"
+on rooms
+for update
+to authenticated
+using (
+    public.is_room_member(id)
+    and is_group = true
+)
+with check (
+    public.is_room_member(id)
+    and is_group = true
 );
 
 -- =====================================================
