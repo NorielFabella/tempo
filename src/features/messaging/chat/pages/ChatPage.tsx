@@ -19,6 +19,7 @@ import { useCreateDirectRoom } from '@/features/messaging/rooms/hooks/useCreateD
 import { useCreateRoom } from '@/features/messaging/rooms/hooks/useCreateRoom'
 import { useRoomMembers } from '@/features/messaging/rooms/hooks/useRoomMembers'
 import { useRooms } from '@/features/messaging/rooms/hooks/useRooms'
+import { getRoomInitials } from '@/features/messaging/rooms/types/room'
 import { ProfileSearch } from '@/features/profile/components/ProfileSearch'
 import { useProfiles } from '@/features/profile/hooks/useProfiles'
 import type { ProfileSearchResult } from '@/features/profile/types/profile'
@@ -29,7 +30,6 @@ import { Input } from '@/shared/components/ui/Input'
 import { Modal } from '@/shared/components/ui/Modal'
 import { supabase } from '@/shared/supabase/client'
 import { MessageComposer } from '../components/MessageComposer'
-import { getRoomInitials } from '@/features/messaging/rooms/types/room'
 import type { Message } from '../types/message'
 
 function getDisplayName(fullName: string | null, email: string) {
@@ -38,6 +38,19 @@ function getDisplayName(fullName: string | null, email: string) {
   }
 
   return email
+}
+
+function getProfileInitials(fullName: string | null, email: string) {
+  const parts = fullName?.trim().split(/\s+/).filter(Boolean) ?? []
+
+  if (parts.length > 0) {
+    return parts
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('')
+  }
+
+  return email.charAt(0).toUpperCase() || 'U'
 }
 
 function formatLastSeen(lastSeenAt: string | null) {
@@ -179,7 +192,10 @@ export function ChatPage() {
     (userId) => userId !== user?.id,
   )
 
-  const { data: otherRoomProfiles = [] } = useProfiles(otherRoomMemberIds)
+  const {
+    data: otherRoomProfiles = [],
+    dataUpdatedAt: otherRoomProfilesUpdatedAt,
+  } = useProfiles(otherRoomMemberIds)
 
   const directMessageProfile = useMemo(
     () => otherRoomProfiles[0] ?? null,
@@ -392,6 +408,37 @@ export function ChatPage() {
           table: 'messages',
         },
         () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['rooms', user.id],
+          })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [user?.id, queryClient])
+
+  useEffect(() => {
+    if (!user?.id) {
+      return
+    }
+
+    const channel = supabase
+      .channel(`profiles-list:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['profiles'],
+          })
+
           void queryClient.invalidateQueries({
             queryKey: ['rooms', user.id],
           })
@@ -907,6 +954,23 @@ export function ChatPage() {
             cacheKey={`${selectedRoom.id}:${selectedRoom.avatar_url ?? ''}:${roomsUpdatedAt}`}
           />
         )}
+        {activeRoomId &&
+          selectedRoom &&
+          !selectedRoom.is_group &&
+          directMessageProfile && (
+            <Avatar
+              imageUrl={directMessageProfile.avatar_url}
+              fallback={getProfileInitials(
+                directMessageProfile.full_name,
+                directMessageProfile.email,
+              )}
+              alt=""
+              size="sm"
+              cacheKey={`${directMessageProfile.id}:${
+                directMessageProfile.avatar_url ?? ''
+              }:${otherRoomProfilesUpdatedAt}`}
+            />
+          )}
         {activeRoomId && selectedRoom && (
           <div className="relative shrink-0" ref={roomMenuRef}>
             <button

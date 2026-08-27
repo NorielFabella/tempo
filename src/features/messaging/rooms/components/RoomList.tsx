@@ -114,15 +114,21 @@ export function RoomList({
             }`}
           >
             <div className="flex min-w-0 items-start gap-3">
-              {room.is_group && (
-                <Avatar
-                  imageUrl={room.avatar_url}
-                  fallback={getRoomInitials(room.name)}
-                  alt=""
-                  size="sm"
-                  cacheKey={`${room.id}:${room.avatar_url ?? ''}:${avatarCacheKey ?? ''}`}
-                />
-              )}
+              <Avatar
+                imageUrl={
+                  room.is_group ? room.avatar_url : room.other_user_avatar_url
+                }
+                fallback={getRoomInitials(
+                  room.is_group ? room.name : room.other_user_name,
+                )}
+                alt=""
+                size="sm"
+                cacheKey={`${room.id}:${
+                  room.is_group
+                    ? room.avatar_url ?? ''
+                    : room.other_user_avatar_url ?? ''
+                }:${avatarCacheKey ?? ''}`}
+              />
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">

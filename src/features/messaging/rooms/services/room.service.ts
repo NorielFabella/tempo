@@ -1,5 +1,5 @@
-import { supabase } from '@/shared/supabase/client'
 import { validateAvatarFile } from '@/shared/lib/avatarValidation'
+import { supabase } from '@/shared/supabase/client'
 import type { Tables } from '@/shared/types/database'
 import type { RoomWithMetadata } from '../types/room'
 
@@ -269,7 +269,7 @@ export async function getRoomsWithMetadata(
     directMessageUserIds.length > 0
       ? await supabase
           .from('profiles')
-          .select('id, full_name')
+          .select('id, full_name, avatar_url')
           .in('id', directMessageUserIds)
       : { data: [], error: null }
 
@@ -320,6 +320,9 @@ export async function getRoomsWithMetadata(
     const otherUserName = otherUserId
       ? directMessageProfilesById.get(otherUserId)?.full_name ?? null
       : null
+    const otherUserAvatarUrl = otherUserId
+      ? directMessageProfilesById.get(otherUserId)?.avatar_url ?? null
+      : null
 
     if (!latestMessage) {
       return {
@@ -327,6 +330,7 @@ export async function getRoomsWithMetadata(
         latest_message: null,
         unread_count: unreadCountByRoom.get(room.id) ?? 0,
         other_user_name: otherUserName,
+        other_user_avatar_url: otherUserAvatarUrl,
       }
     }
 
@@ -341,6 +345,7 @@ export async function getRoomsWithMetadata(
       },
       unread_count: unreadCountByRoom.get(room.id) ?? 0,
       other_user_name: otherUserName,
+      other_user_avatar_url: otherUserAvatarUrl,
     }
   })
 

@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import {
-  removeRoomAvatar,
-  uploadRoomAvatar,
+    removeRoomAvatar,
+    uploadRoomAvatar,
 } from '../services/room.service'
 
 type RoomAvatarMutationInput = {

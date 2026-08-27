@@ -1,5 +1,5 @@
-import { supabase } from '@/shared/supabase/client'
 import { validateAvatarFile } from '@/shared/lib/avatarValidation'
+import { supabase } from '@/shared/supabase/client'
 import type { Profile, ProfileSearchResult } from '../types/profile'
 
 const AVATAR_BUCKET = 'avatars'

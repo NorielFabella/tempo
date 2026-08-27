@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { useQueryClient } from '@tanstack/react-query'
+
 import { Avatar } from '@/shared/components/ui/Avatar'
 import { Button } from '@/shared/components/ui/Button'
 import { Input } from '@/shared/components/ui/Input'
@@ -16,6 +18,7 @@ type EditRoomFormProps = {
 }
 
 function EditRoomForm({ room, userId, onClose }: EditRoomFormProps) {
+  const queryClient = useQueryClient()
   const [name, setName] = useState(room.name ?? '')
   const [error, setError] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -27,6 +30,8 @@ function EditRoomForm({ room, userId, onClose }: EditRoomFormProps) {
   const roomAvatarMutation = useRoomAvatarMutation()
   const isPending =
     updateRoomMutation.isPending || roomAvatarMutation.isPending
+  const roomsUpdatedAt =
+    queryClient.getQueryState(['rooms', userId])?.dataUpdatedAt ?? 0
 
   useEffect(() => {
     return () => {
@@ -177,6 +182,11 @@ function EditRoomForm({ room, userId, onClose }: EditRoomFormProps) {
             fallback={getRoomInitials(name)}
             alt=""
             size="lg"
+            cacheKey={
+              previewUrl
+                ? undefined
+                : `${room.id}:${room.avatar_url ?? ''}:${roomsUpdatedAt}`
+            }
           />
 
           <div className="space-y-2">

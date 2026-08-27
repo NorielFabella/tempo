@@ -28,4 +28,5 @@ export type RoomWithMetadata = Room & {
   latest_message: LatestMessageInfo | null
   unread_count: number
   other_user_name: string | null
+  other_user_avatar_url: string | null
 }
