@@ -1,9 +1,12 @@
-import type { RoomWithMetadata } from '../types/room'
+import { Avatar } from '@/shared/components/ui/Avatar'
+
+import { getRoomInitials, type RoomWithMetadata } from '../types/room'
 
 type RoomListProps = {
   rooms: RoomWithMetadata[]
   activeRoomId: string | null
   currentUserId: string | null
+  avatarCacheKey?: string | number
   onSelectRoom: (roomId: string) => void
 }
 
@@ -78,6 +81,7 @@ export function RoomList({
   rooms,
   activeRoomId,
   currentUserId,
+  avatarCacheKey,
   onSelectRoom,
 }: RoomListProps) {
   if (!rooms.length) {
@@ -110,6 +114,16 @@ export function RoomList({
             }`}
           >
             <div className="flex min-w-0 items-start gap-3">
+              {room.is_group && (
+                <Avatar
+                  imageUrl={room.avatar_url}
+                  fallback={getRoomInitials(room.name)}
+                  alt=""
+                  size="sm"
+                  cacheKey={`${room.id}:${room.avatar_url ?? ''}:${avatarCacheKey ?? ''}`}
+                />
+              )}
+
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <p

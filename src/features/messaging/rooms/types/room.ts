@@ -2,6 +2,19 @@ import type { Tables } from '@/shared/types/database'
 
 export type Room = Tables<'rooms'>
 
+export function getRoomInitials(roomName: string | null) {
+  const parts = roomName?.trim().split(/\s+/).filter(Boolean) ?? []
+
+  if (!parts.length) {
+    return 'R'
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('')
+}
+
 export type LatestMessageInfo = {
   content: string
   created_at: string

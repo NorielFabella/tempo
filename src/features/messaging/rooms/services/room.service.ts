@@ -1,8 +1,142 @@
 import { supabase } from '@/shared/supabase/client'
+import { validateAvatarFile } from '@/shared/lib/avatarValidation'
 import type { Tables } from '@/shared/types/database'
 import type { RoomWithMetadata } from '../types/room'
 
 export type Room = Tables<'rooms'>
+
+const ROOM_AVATAR_BUCKET = 'room-avatars'
+const ROOM_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+type RoomAvatarMetadata = Pick<
+  Room,
+  'id' | 'is_group' | 'avatar_url' | 'avatar_path'
+>
+
+async function getRoomAvatarMetadata(roomId: string): Promise<RoomAvatarMetadata> {
+  if (!ROOM_ID_PATTERN.test(roomId)) {
+    throw new Error('A valid room ID is required.')
+  }
+
+  const { data, error } = await supabase
+    .from('rooms')
+    .select('id, is_group, avatar_url, avatar_path')
+    .eq('id', roomId)
+    .single()
+
+  if (error) {
+    throw new Error('The room could not be found.')
+  }
+
+  if (!data.is_group) {
+    throw new Error('Direct-message rooms cannot have room avatars.')
+  }
+
+  return data
+}
+
+async function removeRoomAvatarObject(filePath: string): Promise<void> {
+  const { error } = await supabase.storage
+    .from(ROOM_AVATAR_BUCKET)
+    .remove([filePath])
+
+  if (error) {
+    throw new Error('The room avatar could not be removed.')
+  }
+}
+
+export async function uploadRoomAvatar(
+  roomId: string,
+  file: File,
+): Promise<Room> {
+  const room = await getRoomAvatarMetadata(roomId)
+  const extension = validateAvatarFile(file)
+  const filePath = `rooms/${roomId}/avatar.${extension}`
+
+  const { error: uploadError } = await supabase.storage
+    .from(ROOM_AVATAR_BUCKET)
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: true,
+      contentType: file.type,
+    })
+
+  if (uploadError) {
+    throw new Error('The room avatar could not be uploaded.')
+  }
+
+  const { data: publicUrl } = supabase.storage
+    .from(ROOM_AVATAR_BUCKET)
+    .getPublicUrl(filePath)
+
+  const { data: updatedRoom, error: updateError } = await supabase
+    .from('rooms')
+    .update({
+      avatar_url: publicUrl.publicUrl,
+      avatar_path: filePath,
+    })
+    .eq('id', roomId)
+    .eq('is_group', true)
+    .select('*')
+    .single()
+
+  if (updateError) {
+    if (room.avatar_path !== filePath) {
+      try {
+        await removeRoomAvatarObject(filePath)
+      } catch (cleanupError) {
+        console.warn('Failed to clean up the uploaded room avatar.', cleanupError)
+      }
+    }
+
+    throw new Error('The room avatar could not be saved.')
+  }
+
+  if (room.avatar_path && room.avatar_path !== filePath) {
+    try {
+      await removeRoomAvatarObject(room.avatar_path)
+    } catch (cleanupError) {
+      console.warn('Failed to clean up the previous room avatar.', cleanupError)
+    }
+  }
+
+  return updatedRoom
+}
+
+export async function removeRoomAvatar(roomId: string): Promise<Room> {
+  const room = await getRoomAvatarMetadata(roomId)
+
+  if (room.avatar_path) {
+    await removeRoomAvatarObject(room.avatar_path)
+  } else if (!room.avatar_url) {
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('id', roomId)
+      .single()
+
+    if (error) {
+      throw new Error('The room could not be loaded.')
+    }
+
+    return data
+  }
+
+  const { data: updatedRoom, error } = await supabase
+    .from('rooms')
+    .update({ avatar_url: null, avatar_path: null })
+    .eq('id', roomId)
+    .eq('is_group', true)
+    .select('*')
+    .single()
+
+  if (error) {
+    throw new Error('The room avatar could not be cleared.')
+  }
+
+  return updatedRoom
+}
 
 export async function getRooms(): Promise<Room[]> {
   const { data, error } = await supabase

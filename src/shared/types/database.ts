@@ -151,6 +151,8 @@ export type Database = {
       }
       rooms: {
         Row: {
+          avatar_path: string | null
+          avatar_url: string | null
           created_at: string
           created_by: string
           id: string
@@ -158,6 +160,8 @@ export type Database = {
           name: string | null
         }
         Insert: {
+          avatar_path?: string | null
+          avatar_url?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -165,6 +169,8 @@ export type Database = {
           name?: string | null
         }
         Update: {
+          avatar_path?: string | null
+          avatar_url?: string | null
           created_at?: string
           created_by?: string
           id?: string

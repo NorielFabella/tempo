@@ -22,12 +22,14 @@ import { useRooms } from '@/features/messaging/rooms/hooks/useRooms'
 import { ProfileSearch } from '@/features/profile/components/ProfileSearch'
 import { useProfiles } from '@/features/profile/hooks/useProfiles'
 import type { ProfileSearchResult } from '@/features/profile/types/profile'
+import { Avatar } from '@/shared/components/ui/Avatar'
 import { Button } from '@/shared/components/ui/Button'
 import { Card } from '@/shared/components/ui/Card'
 import { Input } from '@/shared/components/ui/Input'
 import { Modal } from '@/shared/components/ui/Modal'
 import { supabase } from '@/shared/supabase/client'
 import { MessageComposer } from '../components/MessageComposer'
+import { getRoomInitials } from '@/features/messaging/rooms/types/room'
 import type { Message } from '../types/message'
 
 function getDisplayName(fullName: string | null, email: string) {
@@ -73,6 +75,7 @@ export function ChatPage() {
   const userId = user?.id
   const {
     data: rooms,
+    dataUpdatedAt: roomsUpdatedAt,
     isLoading: areRoomsLoading,
     isError: areRoomsUnavailable,
     refetch: refetchRooms,
@@ -822,6 +825,7 @@ export function ChatPage() {
                   rooms={rooms}
                   activeRoomId={activeRoomId}
                   currentUserId={user?.id ?? null}
+                  avatarCacheKey={roomsUpdatedAt}
                   onSelectRoom={(roomId) => {
                     setSelectedRoomId(roomId)
                     setIsMobileRoomListOpen(false)
@@ -894,6 +898,15 @@ export function ChatPage() {
             </p>
           ) : null}
         </div>
+        {activeRoomId && selectedRoom?.is_group && (
+          <Avatar
+            imageUrl={selectedRoom.avatar_url}
+            fallback={getRoomInitials(selectedRoom.name)}
+            alt=""
+            size="sm"
+            cacheKey={`${selectedRoom.id}:${selectedRoom.avatar_url ?? ''}:${roomsUpdatedAt}`}
+          />
+        )}
         {activeRoomId && selectedRoom && (
           <div className="relative shrink-0" ref={roomMenuRef}>
             <button
@@ -1280,6 +1293,7 @@ export function ChatPage() {
         <EditRoomModal
           open={isEditRoomOpen}
           room={selectedRoom ?? null}
+          userId={user?.id ?? ''}
           onClose={() => {
             setIsEditRoomOpen(false)
           }}

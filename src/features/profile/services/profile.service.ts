@@ -1,22 +1,8 @@
 import { supabase } from '@/shared/supabase/client'
+import { validateAvatarFile } from '@/shared/lib/avatarValidation'
 import type { Profile, ProfileSearchResult } from '../types/profile'
 
 const AVATAR_BUCKET = 'avatars'
-const MAX_AVATAR_SIZE = 1 * 1024 * 1024
-const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-
-function getFileExtension(file: File) {
-  switch (file.type) {
-    case 'image/jpeg':
-      return 'jpg'
-    case 'image/png':
-      return 'png'
-    case 'image/webp':
-      return 'webp'
-    default:
-      return null
-  }
-}
 
 export async function getCurrentProfile(): Promise<Profile> {
   const {
@@ -62,19 +48,7 @@ export async function uploadAvatar(file: File): Promise<string> {
     throw new Error('User not found.')
   }
 
-  if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
-    throw new Error('Please choose a JPG, PNG, or WebP image.')
-  }
-
-  if (file.size > MAX_AVATAR_SIZE) {
-    throw new Error('Avatar image must be 1 MB or smaller.')
-  }
-
-  const extension = getFileExtension(file)
-
-  if (!extension) {
-    throw new Error('Unsupported avatar image type.')
-  }
+  const extension = validateAvatarFile(file)
 
   const filePath = `${user.id}/avatar.${extension}`
 
