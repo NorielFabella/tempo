@@ -217,6 +217,45 @@ export async function createRoom(name: string) {
   return data
 }
 
+export async function updateRoom(
+  roomId: string,
+  name: string,
+): Promise<Room> {
+  const trimmedName = name.trim()
+
+  if (!trimmedName) {
+    throw new Error('Room name is required.')
+  }
+
+  const { data, error } = await supabase
+    .from('rooms')
+    .update({
+      name: trimmedName,
+    })
+    .eq('id', roomId)
+    .eq('is_group', true)
+    .select('*')
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function deleteRoom(roomId: string): Promise<void> {
+  const { error } = await supabase
+    .from('rooms')
+    .delete()
+    .eq('id', roomId)
+    .eq('is_group', true)
+
+  if (error) {
+    throw error
+  }
+}
+
 export async function getOrCreateDirectRoom(
   otherUserId: string,
 ): Promise<string> {
