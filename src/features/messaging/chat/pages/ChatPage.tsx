@@ -158,7 +158,10 @@ export function ChatPage() {
     [messages],
   )
 
-  const { data: messageProfiles = [] } = useProfiles(messageSenderIds)
+  const {
+    data: messageProfiles = [],
+    dataUpdatedAt: messageProfilesUpdatedAt,
+  } = useProfiles(messageSenderIds)
 
   const messageProfilesById = useMemo(
     () => new Map(messageProfiles.map((profile) => [profile.id, profile])),
@@ -1083,6 +1086,17 @@ export function ChatPage() {
                         senderProfile.email,
                       )
                     : 'Unknown user'
+                  const senderAvatarFallback = senderProfile
+                    ? getProfileInitials(
+                        senderProfile.full_name,
+                        senderProfile.email,
+                      )
+                    : 'U'
+                  const senderAvatarCacheKey = senderProfile
+                    ? `${senderProfile.id}:${
+                        senderProfile.avatar_url ?? ''
+                      }:${senderProfile.updated_at}:${messageProfilesUpdatedAt}`
+                    : undefined
                   const isSameSenderAsPrevious =
                     messages[index - 1]?.sender_id === message.sender_id
                   const shouldShowSender =
@@ -1095,6 +1109,19 @@ export function ChatPage() {
                         isOwnMessage ? 'justify-end' : 'justify-start'
                       } ${isSameSenderAsPrevious ? 'mt-1' : 'mt-4 first:mt-0'}`}
                     >
+                      <div
+                        className={`flex min-w-0 items-end gap-2 ${
+                          isOwnMessage ? 'flex-row-reverse' : ''
+                        }`}
+                      >
+                        <Avatar
+                          imageUrl={senderProfile?.avatar_url}
+                          fallback={senderAvatarFallback}
+                          alt=""
+                          size="sm"
+                          cacheKey={senderAvatarCacheKey}
+                        />
+
                       <div
                         className={`min-w-0 max-w-[88%] rounded-2xl border px-3 py-2 sm:max-w-[75%] sm:px-4 sm:py-3 ${
                           isOwnMessage ? 'bg-blue-600 text-white' : 'bg-card'
@@ -1263,6 +1290,7 @@ export function ChatPage() {
 
                         </div>
                       </div>
+                    </div>
                     </div>
                   )
                 })}
