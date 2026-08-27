@@ -122,16 +122,19 @@ export type Database = {
       }
       room_members: {
         Row: {
+          deleted_at: string | null
           joined_at: string
           room_id: string
           user_id: string
         }
         Insert: {
+          deleted_at?: string | null
           joined_at?: string
           room_id: string
           user_id: string
         }
         Update: {
+          deleted_at?: string | null
           joined_at?: string
           room_id?: string
           user_id?: string
@@ -219,6 +222,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      hide_direct_room: {
+        Args: { target_room_id: string }
+        Returns: undefined
       }
       get_or_create_direct_room: {
         Args: { other_user_id: string }

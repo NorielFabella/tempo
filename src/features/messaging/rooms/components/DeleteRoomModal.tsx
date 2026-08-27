@@ -3,11 +3,13 @@ import { useState } from 'react'
 import { Button } from '@/shared/components/ui/Button'
 import { Modal } from '@/shared/components/ui/Modal'
 
+import { useDeleteDirectRoom } from '../hooks/useDeleteDirectRoom'
 import { useDeleteRoom } from '../hooks/useDeleteRoom'
 import type { RoomWithMetadata } from '../types/room'
 
 type DeleteRoomModalProps = {
   room: RoomWithMetadata | null
+  userId: string
   open: boolean
   onClose: () => void
   onDeleted?: (deletedRoomId: string) => void
@@ -15,12 +17,18 @@ type DeleteRoomModalProps = {
 
 export function DeleteRoomModal({
   room,
+  userId,
   open,
   onClose,
   onDeleted,
 }: DeleteRoomModalProps) {
   const [error, setError] = useState<string | null>(null)
   const deleteRoomMutation = useDeleteRoom()
+  const deleteDirectRoomMutation = useDeleteDirectRoom()
+  const isGroupRoom = room?.is_group ?? false
+  const deleteMutation = isGroupRoom
+    ? deleteRoomMutation
+    : deleteDirectRoomMutation
 
   const handleClose = () => {
     setError(null)
@@ -28,33 +36,52 @@ export function DeleteRoomModal({
   }
 
   const handleDelete = async () => {
-    if (!room || !room.is_group) {
+    if (!room) {
       return
     }
 
     setError(null)
 
     try {
-      await deleteRoomMutation.mutateAsync({
-        roomId: room.id,
-      })
+      if (room.is_group) {
+        await deleteRoomMutation.mutateAsync({ roomId: room.id })
+      } else {
+        await deleteDirectRoomMutation.mutateAsync({
+          roomId: room.id,
+          userId,
+        })
+      }
 
       handleClose()
       onDeleted?.(room.id)
     } catch {
-      setError('The room could not be deleted. Please try again.')
+      setError(
+        room.is_group
+          ? 'The room could not be deleted. Please try again.'
+          : 'The conversation could not be deleted. Please try again.',
+      )
     }
   }
 
   return (
-    <Modal open={open} title="Delete room" onClose={handleClose}>
+    <Modal
+      open={open}
+      title={isGroupRoom ? 'Delete room' : 'Delete conversation'}
+      onClose={handleClose}
+    >
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Are you sure you want to delete{' '}
-          <span className="font-semibold text-foreground">
-            {room?.name ?? 'this group room'}
-          </span>
-          ? This action is permanent and will remove the room and all its messages for all members.
+          {isGroupRoom ? (
+            <>
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-foreground">
+                {room?.name ?? 'this group room'}
+              </span>
+              ? This action is permanent and will remove the room and all its messages for all members.
+            </>
+          ) : (
+            'This conversation will be removed from your chat list. The other participant will keep their message history.'
+          )}
         </p>
 
         {error && (
@@ -68,7 +95,7 @@ export function DeleteRoomModal({
             type="button"
             variant="secondary"
             onClick={handleClose}
-            disabled={deleteRoomMutation.isPending}
+            disabled={deleteMutation.isPending}
           >
             Cancel
           </Button>
@@ -79,9 +106,13 @@ export function DeleteRoomModal({
             onClick={() => {
               void handleDelete()
             }}
-            disabled={deleteRoomMutation.isPending}
+            disabled={deleteMutation.isPending}
           >
-            {deleteRoomMutation.isPending ? 'Deleting...' : 'Delete room'}
+            {deleteMutation.isPending
+              ? 'Deleting...'
+              : isGroupRoom
+                ? 'Delete room'
+                : 'Delete for me'}
           </Button>
         </div>
       </div>

@@ -837,7 +837,7 @@ export function ChatPage() {
             </p>
           ) : null}
         </div>
-        {activeRoomId && selectedRoom?.is_group && (
+        {activeRoomId && selectedRoom && (
           <div className="relative shrink-0" ref={roomMenuRef}>
             <button
               type="button"
@@ -853,26 +853,30 @@ export function ChatPage() {
 
             {isRoomMenuOpen && (
               <div className="absolute right-0 top-full z-10 mt-1 min-w-36 rounded-lg border bg-background p-1 text-foreground shadow-lg">
-                <button
-                  type="button"
-                  className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
-                  onClick={() => {
-                    setIsRoomMenuOpen(false)
-                    setIsEditRoomOpen(true)
-                  }}
-                >
-                  Rename room
-                </button>
-                <button
-                  type="button"
-                  className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
-                  onClick={() => {
-                    setIsRoomMenuOpen(false)
-                    setIsAddMembersOpen(true)
-                  }}
-                >
-                  Add members
-                </button>
+                {selectedRoom.is_group && (
+                  <>
+                    <button
+                      type="button"
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                      onClick={() => {
+                        setIsRoomMenuOpen(false)
+                        setIsEditRoomOpen(true)
+                      }}
+                    >
+                      Rename room
+                    </button>
+                    <button
+                      type="button"
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                      onClick={() => {
+                        setIsRoomMenuOpen(false)
+                        setIsAddMembersOpen(true)
+                      }}
+                    >
+                      Add members
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   className="block w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
@@ -881,7 +885,7 @@ export function ChatPage() {
                     setIsDeleteRoomOpen(true)
                   }}
                 >
-                  Delete room
+                  {selectedRoom.is_group ? 'Delete room' : 'Delete conversation'}
                 </button>
               </div>
             )}
@@ -1220,6 +1224,7 @@ export function ChatPage() {
         <DeleteRoomModal
           open={isDeleteRoomOpen}
           room={selectedRoom ?? null}
+          userId={user?.id ?? ''}
           onClose={() => {
             setIsDeleteRoomOpen(false)
           }}

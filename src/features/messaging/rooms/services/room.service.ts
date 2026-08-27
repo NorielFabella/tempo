@@ -37,7 +37,7 @@ export async function getRoomsWithMetadata(
 
   const { data: roomMembers, error: roomMembersError } = await supabase
     .from('room_members')
-    .select('room_id, user_id')
+    .select('room_id, user_id, deleted_at')
     .in('room_id', roomIds)
 
   if (roomMembersError) {
@@ -147,7 +147,32 @@ export async function getRoomsWithMetadata(
     directMessageProfiles.map((profile) => [profile.id, profile]),
   )
 
-  const roomsWithMetadata = rooms.map((room) => {
+  const visibleRooms = rooms.filter((room) => {
+    if (room.is_group) {
+      return true
+    }
+
+    const currentMember = roomMembers.find(
+      (member) =>
+        member.room_id === room.id && member.user_id === currentUserId,
+    )
+
+    if (!currentMember?.deleted_at) {
+      return true
+    }
+
+    const latestMessage = latestMessageByRoom.get(room.id)
+    if (!latestMessage) {
+      return false
+    }
+
+    return (
+      new Date(latestMessage.created_at).getTime() >
+      new Date(currentMember.deleted_at).getTime()
+    )
+  })
+
+  const roomsWithMetadata = visibleRooms.map((room) => {
     const latestMessage = latestMessageByRoom.get(room.id)
 
     const roomMembersForRoom = roomMembers.filter(
@@ -250,6 +275,16 @@ export async function deleteRoom(roomId: string): Promise<void> {
     .delete()
     .eq('id', roomId)
     .eq('is_group', true)
+
+  if (error) {
+    throw error
+  }
+}
+
+export async function hideDirectRoom(roomId: string): Promise<void> {
+  const { error } = await supabase.rpc('hide_direct_room', {
+    target_room_id: roomId,
+  })
 
   if (error) {
     throw error
