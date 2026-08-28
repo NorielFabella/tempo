@@ -94,7 +94,7 @@ export function AddRoomMembers({
             }}
             disabled={addRoomMemberMutation.isPending}
           >
-            {addRoomMemberMutation.isPending ? 'Adding...' : 'Add'}
+            {addRoomMemberMutation.isPending ? 'Adding...' : 'Confirm'}
           </Button>
         </div>
       )}

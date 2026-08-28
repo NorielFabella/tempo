@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -83,7 +84,13 @@ function formatLastSeen(lastSeenAt: string | null) {
   return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
 }
 
+type ChatLocationState = {
+  targetRoomId?: string
+}
+
 export function ChatPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const userId = user?.id
   const {
@@ -128,9 +135,23 @@ export function ChatPage() {
   const [isNewMessageOpen, setIsNewMessageOpen] = useState(false)
   const [directMessageError, setDirectMessageError] = useState<string | null>(null)
 
+  const targetRoomId = (location.state as ChatLocationState | null)?.targetRoomId
+
   const isSelectedRoomValid = rooms?.some((room) => room.id === selectedRoomId)
+  const isTargetRoomValid = rooms?.some((room) => room.id === targetRoomId)
   const activeRoomId =
-    (isSelectedRoomValid ? selectedRoomId : null) ?? rooms?.[0]?.id ?? null
+    (isTargetRoomValid ? targetRoomId : null) ??
+    (isSelectedRoomValid ? selectedRoomId : null) ??
+    rooms?.[0]?.id ??
+    null
+
+  useEffect(() => {
+    if (!targetRoomId || !rooms) {
+      return
+    }
+
+    void navigate('/app/chat', { replace: true, state: null })
+  }, [navigate, rooms, targetRoomId])
 
   const {
     data: messages,
@@ -1004,7 +1025,7 @@ export function ChatPage() {
                         setIsEditRoomOpen(true)
                       }}
                     >
-                      Rename room
+                      Edit room
                     </button>
                     <button
                       type="button"

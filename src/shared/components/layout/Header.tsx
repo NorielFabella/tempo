@@ -1,6 +1,10 @@
 import { Bell, Menu } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { NotificationBadge } from '@/features/notifications/components/NotificationBadge'
+import { NotificationCenter } from '@/features/notifications/components/NotificationCenter'
+import { useNotificationRealtime } from '@/features/notifications/hooks/useNotificationRealtime'
+import { useUnreadNotificationCount } from '@/features/notifications/hooks/useUnreadNotificationCount'
 import { UserMenu } from '@/shared/components/layout/UserMenu'
 
 type HeaderProps = {
@@ -10,6 +14,9 @@ type HeaderProps = {
 export function Header({ onMenuClick }: HeaderProps) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const notificationsRef = useRef<HTMLDivElement>(null)
+  const { data: unreadCount = 0 } = useUnreadNotificationCount()
+
+  useNotificationRealtime()
 
   useEffect(() => {
     if (!isNotificationsOpen) {
@@ -73,31 +80,20 @@ export function Header({ onMenuClick }: HeaderProps) {
               }}
             >
               <Bell className="h-5 w-5" />
+              <NotificationBadge count={unreadCount} />
             </button>
 
             {isNotificationsOpen && (
               <div
                 role="dialog"
                 aria-label="Notifications"
-                className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900"
+                className="absolute right-0 z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900"
               >
-                <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    Notifications
-                  </h2>
-                </div>
-
-                <div className="px-4 py-8 text-center">
-                  <Bell className="mx-auto h-7 w-7 text-slate-300 dark:text-slate-600" />
-
-                  <p className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    No notifications yet
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    You're all caught up.
-                  </p>
-                </div>
+                <NotificationCenter
+                  onClose={() => {
+                    setIsNotificationsOpen(false)
+                  }}
+                />
               </div>
             )}
           </div>

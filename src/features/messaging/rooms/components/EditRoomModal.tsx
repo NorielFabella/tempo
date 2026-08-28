@@ -271,7 +271,7 @@ export function EditRoomModal({
   onClose,
 }: EditRoomModalProps) {
   return (
-    <Modal open={open} title="Rename room" onClose={onClose}>
+    <Modal open={open} title="Edit room" onClose={onClose}>
       {room && (
         <EditRoomForm
           key={room.id}

@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -83,6 +83,68 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          id: string
+          message_id: string | null
+          read_at: string | null
+          recipient_id: string
+          room_id: string | null
+          type: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          read_at?: string | null
+          recipient_id: string
+          room_id?: string | null
+          type: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          read_at?: string | null
+          recipient_id?: string
+          room_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_room_id_fkey"
             columns: ["room_id"]
             isOneToOne: false
             referencedRelation: "rooms"
@@ -216,6 +278,8 @@ export type Database = {
       create_room: {
         Args: { room_name: string }
         Returns: {
+          avatar_path: string | null
+          avatar_url: string | null
           created_at: string
           created_by: string
           id: string
@@ -229,14 +293,11 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      hide_direct_room: {
-        Args: { target_room_id: string }
-        Returns: undefined
-      }
       get_or_create_direct_room: {
         Args: { other_user_id: string }
         Returns: string
       }
+      hide_direct_room: { Args: { target_room_id: string }; Returns: undefined }
       is_room_member: { Args: { room_uuid: string }; Returns: boolean }
       search_profiles: {
         Args: { search_query: string }
