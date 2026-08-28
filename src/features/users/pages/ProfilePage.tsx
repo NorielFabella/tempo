@@ -1,15 +1,24 @@
 import {
-  CalendarDays,
-  Camera,
-  Clock3,
-  Mail,
-  UserCircle,
+    CalendarDays,
+    Camera,
+    Clock3,
+    Mail,
+    UserCircle,
 } from 'lucide-react'
 
 import { useAvatarUpload } from '@/features/profile/hooks/useAvatarUpload'
 import { useProfile } from '@/features/profile/hooks/useProfile'
+import { useUpdateProfile } from '@/features/profile/hooks/useUpdateProfile'
+import {
+    profileSchema,
+    type ProfileFormValues,
+} from '@/features/profile/schemas/profileSchema'
 import { Button } from '@/shared/components/ui/Button'
 import { Card } from '@/shared/components/ui/Card'
+import { Input } from '@/shared/components/ui/Input'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useState, type FormEventHandler } from 'react'
+import { useForm, type SubmitHandler } from 'react-hook-form'
 
 function getInitials(fullName: string | null, email: string) {
   if (fullName?.trim()) {
@@ -76,6 +85,21 @@ function formatLastSeen(lastSeenAt: string | null) {
 export function ProfilePage() {
   const { data: profile, isLoading, isError, refetch } = useProfile()
   const avatarUpload = useAvatarUpload()
+  const updateProfileMutation = useUpdateProfile()
+  const [isEditing, setIsEditing] = useState(false)
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null)
+  const [updateError, setUpdateError] = useState<string | null>(null)
+  const {
+    register,
+    reset,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      full_name: '',
+    },
+  })
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -87,6 +111,56 @@ export function ProfilePage() {
     }
 
     avatarUpload.mutate(file)
+  }
+
+  const handleEdit = () => {
+    if (!profile) {
+      return
+    }
+
+    reset({ full_name: profile.full_name?.trim() ?? '' })
+    setUpdateMessage(null)
+    setUpdateError(null)
+    setIsEditing(true)
+  }
+
+  const handleCancel = () => {
+    reset({ full_name: profile?.full_name?.trim() ?? '' })
+    setUpdateError(null)
+    setIsEditing(false)
+  }
+
+  const onSubmit: SubmitHandler<ProfileFormValues> = async (values) => {
+    if (!profile) {
+      return
+    }
+
+    setUpdateMessage(null)
+    setUpdateError(null)
+
+    const fullName = values.full_name.trim()
+    const originalFullName = profile.full_name?.trim() ?? ''
+
+    if (fullName === originalFullName) {
+      setIsEditing(false)
+      return
+    }
+
+    try {
+      await updateProfileMutation.mutateAsync({ full_name: fullName })
+      setIsEditing(false)
+      setUpdateMessage('Profile updated.')
+    } catch (error) {
+      setUpdateError(
+        error instanceof Error
+          ? error.message
+          : 'Could not update your profile.',
+      )
+    }
+  }
+
+  const handleFormSubmit: FormEventHandler<HTMLFormElement> = (event) => {
+    void handleSubmit(onSubmit)(event)
   }
 
   if (isLoading) {
@@ -287,53 +361,129 @@ export function ProfilePage() {
       </Card>
 
       <Card className="p-6 sm:p-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-            <UserCircle className="h-5 w-5" />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <UserCircle className="h-5 w-5" />
+            </div>
+
+            <div>
+              <h2 className="font-semibold text-slate-900 dark:text-slate-100">
+                Account information
+              </h2>
+
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Information associated with your Tempo account.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h2 className="font-semibold text-slate-900 dark:text-slate-100">
-              Account information
-            </h2>
-
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Information associated with your Tempo account.
-            </p>
-          </div>
+          {!isEditing && (
+            <Button type="button" variant="secondary" onClick={handleEdit}>
+              Edit
+            </Button>
+          )}
         </div>
 
-        <dl className="mt-6 divide-y divide-slate-200 dark:divide-slate-800">
-          <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-            <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Full name
-            </dt>
+        <form onSubmit={handleFormSubmit}>
+          <dl className="mt-6 divide-y divide-slate-200 dark:divide-slate-800">
+            <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+              <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Full name
+              </dt>
 
-            <dd className="break-words text-sm text-slate-900 dark:text-slate-100 sm:text-right">
-              {profile.full_name?.trim() || 'Not set'}
-            </dd>
-          </div>
+              <dd className="w-full text-sm text-slate-900 dark:text-slate-100 sm:max-w-sm sm:text-right">
+                {isEditing ? (
+                  <div className="text-left">
+                    <label htmlFor="profile-full-name" className="sr-only">
+                      Full name
+                    </label>
 
-          <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-            <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Email
-            </dt>
+                    <Input
+                      id="profile-full-name"
+                      autoComplete="name"
+                      {...register('full_name', {
+                        onChange: () => {
+                          setUpdateError(null)
+                        },
+                      })}
+                      aria-invalid={errors.full_name ? 'true' : undefined}
+                      aria-describedby={
+                        errors.full_name ? 'profile-full-name-error' : undefined
+                      }
+                      autoFocus
+                    />
 
-            <dd className="break-all text-sm text-slate-900 dark:text-slate-100 sm:text-right">
-              {profile.email}
-            </dd>
-          </div>
+                    {errors.full_name && (
+                      <p
+                        id="profile-full-name-error"
+                        role="alert"
+                        className="mt-1 text-sm text-red-600 dark:text-red-400"
+                      >
+                        {errors.full_name.message}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <span className="break-words">
+                    {profile.full_name?.trim() || 'Not set'}
+                  </span>
+                )}
+              </dd>
+            </div>
 
-          <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-            <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Account created
-            </dt>
+            <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+              <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Email
+              </dt>
 
-            <dd className="text-sm text-slate-900 dark:text-slate-100 sm:text-right">
-              {formatDate(profile.created_at)}
-            </dd>
-          </div>
-        </dl>
+              <dd className="break-all text-sm text-slate-900 dark:text-slate-100 sm:text-right">
+                {profile.email}
+              </dd>
+            </div>
+
+            <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+              <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Account created
+              </dt>
+
+              <dd className="text-sm text-slate-900 dark:text-slate-100 sm:text-right">
+                {formatDate(profile.created_at)}
+              </dd>
+            </div>
+          </dl>
+
+          {isEditing && (
+            <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-end">
+              {updateError && (
+                <p role="alert" className="text-sm text-red-600 dark:text-red-400 sm:mr-auto">
+                  {updateError}
+                </p>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleCancel}
+                  disabled={updateProfileMutation.isPending}
+                >
+                  Cancel
+                </Button>
+
+                <Button type="submit" disabled={updateProfileMutation.isPending}>
+                  {updateProfileMutation.isPending ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </form>
+
+        {updateMessage && !isEditing && (
+          <p className="mt-4 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+            {updateMessage}
+          </p>
+        )}
       </Card>
     </div>
   )

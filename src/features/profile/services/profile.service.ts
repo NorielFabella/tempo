@@ -26,6 +26,31 @@ export async function getCurrentProfile(): Promise<Profile> {
   return data
 }
 
+export async function updateProfile({
+  full_name,
+}: Pick<Profile, 'full_name'>): Promise<Profile> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error('User not found.')
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ full_name })
+    .eq('id', user.id)
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
 export async function getProfilesByIds(userIds: string[]): Promise<Profile[]> {
   const { data, error } = await supabase
     .from('profiles')

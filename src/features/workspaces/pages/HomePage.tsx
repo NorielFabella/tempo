@@ -116,7 +116,9 @@ export function HomePage() {
 
                     <div className="min-w-0">
                       <p className="truncate font-medium text-slate-900 dark:text-slate-100">
-                        {room.name}
+                        {room.is_group
+                          ? room.name
+                          : room.other_user_name ?? 'Direct Message'}
                       </p>
 
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">

@@ -443,6 +443,10 @@ export function ChatPage() {
           })
 
           void queryClient.invalidateQueries({
+            queryKey: ['profile'],
+          })
+
+          void queryClient.invalidateQueries({
             queryKey: ['rooms', user.id],
           })
         },
