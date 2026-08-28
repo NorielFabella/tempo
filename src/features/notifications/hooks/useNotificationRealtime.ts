@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { supabase } from '@/shared/supabase/client'

@@ -1,7 +1,7 @@
 import { MessageSquare, Users } from 'lucide-react'
 
-import { Avatar } from '@/shared/components/ui/Avatar'
 import type { Profile } from '@/features/profile/types/profile'
+import { Avatar } from '@/shared/components/ui/Avatar'
 
 import type { Notification } from '../types/notification'
 
