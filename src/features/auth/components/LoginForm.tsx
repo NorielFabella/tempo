@@ -1,9 +1,14 @@
+import { Globe } from 'lucide-react'
+
 import { PasswordField } from '@/features/auth/components/PasswordField'
 import {
-  loginSchema,
-  type LoginFormValues,
+    loginSchema,
+    type LoginFormValues,
 } from '@/features/auth/schemas/loginSchema'
-import { signIn } from '@/features/auth/services/auth.service'
+import {
+    signIn,
+    signInWithGoogle,
+} from '@/features/auth/services/auth.service'
 import { Button } from '@/shared/components/ui/Button'
 import { Input } from '@/shared/components/ui/Input'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -13,6 +18,7 @@ import { Link } from 'react-router-dom'
 
 export function LoginForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
 
   const {
     register,
@@ -39,6 +45,18 @@ export function LoginForm() {
 
   const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
     void handleSubmit(onSubmit)(event)
+  }
+
+  const handleGoogleSignIn = async () => {
+    setErrorMessage(null)
+    setIsGoogleLoading(true)
+
+    const { error } = await signInWithGoogle()
+
+    if (error) {
+      setErrorMessage(error.message)
+      setIsGoogleLoading(false)
+    }
   }
 
   return (
@@ -82,6 +100,18 @@ export function LoginForm() {
 
       <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Signing in...' : 'Sign in'}
+      </Button>
+
+      <Button
+        type="button"
+        variant="secondary"
+        disabled={isSubmitting || isGoogleLoading}
+        onClick={() => {
+          void handleGoogleSignIn()
+        }}
+      >
+        <Globe className="mr-2 h-4 w-4" aria-hidden="true" />
+        {isGoogleLoading ? 'Connecting...' : 'Continue with Google'}
       </Button>
 
       <p>
