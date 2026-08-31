@@ -6,7 +6,6 @@ type RoomListProps = {
   rooms: RoomWithMetadata[]
   activeRoomId: string | null
   currentUserId: string | null
-  avatarCacheKey?: string | number
   onSelectRoom: (roomId: string) => void
 }
 
@@ -81,7 +80,6 @@ export function RoomList({
   rooms,
   activeRoomId,
   currentUserId,
-  avatarCacheKey,
   onSelectRoom,
 }: RoomListProps) {
   if (!rooms.length) {
@@ -127,7 +125,7 @@ export function RoomList({
                   room.is_group
                     ? room.avatar_url ?? ''
                     : room.other_user_avatar_url ?? ''
-                }:${avatarCacheKey ?? ''}`}
+                }`}
               />
 
               <div className="min-w-0 flex-1">

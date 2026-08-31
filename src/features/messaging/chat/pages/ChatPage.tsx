@@ -95,7 +95,6 @@ export function ChatPage() {
   const userId = user?.id
   const {
     data: rooms,
-    dataUpdatedAt: roomsUpdatedAt,
     isLoading: areRoomsLoading,
     isError: areRoomsUnavailable,
     refetch: refetchRooms,
@@ -181,7 +180,6 @@ export function ChatPage() {
 
   const {
     data: messageProfiles = [],
-    dataUpdatedAt: messageProfilesUpdatedAt,
   } = useProfiles(messageSenderIds)
 
   const messageProfilesById = useMemo(
@@ -216,10 +214,7 @@ export function ChatPage() {
     (userId) => userId !== user?.id,
   )
 
-  const {
-    data: otherRoomProfiles = [],
-    dataUpdatedAt: otherRoomProfilesUpdatedAt,
-  } = useProfiles(otherRoomMemberIds)
+  const { data: otherRoomProfiles = [] } = useProfiles(otherRoomMemberIds)
 
   const directMessageProfile = useMemo(
     () => otherRoomProfiles[0] ?? null,
@@ -377,18 +372,19 @@ export function ChatPage() {
   }, [typingProfiles])
 
   useEffect(() => {
-    if (!activeRoomId) {
-      return
-    }
+  if (!activeRoomId) {
+    return
+  }
 
     const channel = supabase
-      .channel(`room:${activeRoomId}`)
+      .channel(`tempo:room:${activeRoomId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'messages',
+          filter: `room_id=eq.${activeRoomId}`,
         },
         (payload) => {
           if (payload.eventType === 'DELETE') {
@@ -406,7 +402,56 @@ export function ChatPage() {
           }
 
           void queryClient.invalidateQueries({
-            queryKey: ['rooms', user?.id],
+            queryKey: ['rooms', userId],
+          })
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_members',
+          filter: `room_id=eq.${activeRoomId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['room-members', activeRoomId],
+          })
+
+          void queryClient.invalidateQueries({
+            queryKey: ['rooms', userId],
+          })
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'message_attachments',
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['message-attachments'],
+          })
+
+          void queryClient.invalidateQueries({
+            queryKey: ['rooms', userId],
+          })
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'typing_status',
+          filter: `room_id=eq.${activeRoomId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['typing', activeRoomId],
           })
         },
       )
@@ -415,15 +460,15 @@ export function ChatPage() {
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [activeRoomId, queryClient, user?.id])
+  }, [activeRoomId, queryClient, userId])
 
   useEffect(() => {
-    if (!user?.id) {
-      return
-    }
+  if (!user?.id) {
+    return
+  }
 
     const channel = supabase
-      .channel(`room-list:${user.id}`)
+      .channel(`tempo:room-list:${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -437,20 +482,6 @@ export function ChatPage() {
           })
         },
       )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(channel)
-    }
-  }, [user?.id, queryClient])
-
-  useEffect(() => {
-    if (!user?.id) {
-      return
-    }
-
-    const channel = supabase
-      .channel(`profiles-list:${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -472,20 +503,6 @@ export function ChatPage() {
           })
         },
       )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(channel)
-    }
-  }, [user?.id, queryClient])
-
-  useEffect(() => {
-    if (!user?.id) {
-      return
-    }
-
-    const channel = supabase
-      .channel(`rooms-list:${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -499,20 +516,6 @@ export function ChatPage() {
           })
         },
       )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(channel)
-    }
-  }, [user?.id, queryClient])
-
-  useEffect(() => {
-    if (!user?.id) {
-      return
-    }
-
-    const channel = supabase
-      .channel(`room-members-list:${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -526,48 +529,6 @@ export function ChatPage() {
           })
         },
       )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(channel)
-    }
-  }, [user?.id, queryClient])
-
-  useEffect(() => {
-    if (!activeRoomId) {
-      return
-    }
-
-    const channel = supabase
-      .channel(`room-members:${activeRoomId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'room_members',
-          filter: `room_id=eq.${activeRoomId}`,
-        },
-        () => {
-          void queryClient.invalidateQueries({
-            queryKey: ['room-members', activeRoomId],
-          })
-        },
-      )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(channel)
-    }
-  }, [activeRoomId, queryClient])
-
-  useEffect(() => {
-    if (!user?.id) {
-      return
-    }
-
-    const channel = supabase
-      .channel(`room-list-attachments:${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -587,65 +548,6 @@ export function ChatPage() {
       void supabase.removeChannel(channel)
     }
   }, [user?.id, queryClient])
-
-  useEffect(() => {
-    if (!activeRoomId) {
-      return
-    }
-
-    const channel = supabase
-      .channel(`attachments:${activeRoomId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'message_attachments',
-        },
-        () => {
-          void queryClient.invalidateQueries({
-            queryKey: ['message-attachments'],
-          })
-
-          void queryClient.invalidateQueries({
-            queryKey: ['rooms', userId],
-          })
-        },
-      )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(channel)
-    }
-  }, [activeRoomId, queryClient, userId])
-
-  useEffect(() => {
-    if (!activeRoomId) {
-      return
-    }
-
-    const channel = supabase
-      .channel(`typing:${activeRoomId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'typing_status',
-          filter: `room_id=eq.${activeRoomId}`,
-        },
-        () => {
-          void queryClient.invalidateQueries({
-            queryKey: ['typing', activeRoomId],
-          })
-        },
-      )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(channel)
-    }
-  }, [activeRoomId, queryClient])
 
   useEffect(() => {
     const container = scrollContainerRef.current
@@ -900,7 +802,6 @@ export function ChatPage() {
                   rooms={rooms}
                   activeRoomId={activeRoomId}
                   currentUserId={user?.id ?? null}
-                  avatarCacheKey={roomsUpdatedAt}
                   onSelectRoom={(roomId) => {
                     setSelectedRoomId(roomId)
                     setIsMobileRoomListOpen(false)
@@ -979,7 +880,7 @@ export function ChatPage() {
             fallback={getRoomInitials(selectedRoom.name)}
             alt=""
             size="sm"
-            cacheKey={`${selectedRoom.id}:${selectedRoom.avatar_url ?? ''}:${roomsUpdatedAt}`}
+            cacheKey={`${selectedRoom.id}:${selectedRoom.avatar_url ?? ''}`}
           />
         )}
         {activeRoomId &&
@@ -994,9 +895,7 @@ export function ChatPage() {
               )}
               alt=""
               size="sm"
-              cacheKey={`${directMessageProfile.id}:${
-                directMessageProfile.avatar_url ?? ''
-              }:${otherRoomProfilesUpdatedAt}`}
+              cacheKey={`${directMessageProfile.id}:${directMessageProfile.avatar_url ?? ''}`}
             />
           )}
         {activeRoomId && selectedRoom && (
@@ -1118,9 +1017,7 @@ export function ChatPage() {
                       )
                     : 'U'
                   const senderAvatarCacheKey = senderProfile
-                    ? `${senderProfile.id}:${
-                        senderProfile.avatar_url ?? ''
-                      }:${senderProfile.updated_at}:${messageProfilesUpdatedAt}`
+                    ? `${senderProfile.id}:${senderProfile.avatar_url ?? ''}`
                     : undefined
                   const isSameSenderAsPrevious =
                     messages[index - 1]?.sender_id === message.sender_id

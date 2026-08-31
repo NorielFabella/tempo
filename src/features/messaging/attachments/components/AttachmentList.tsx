@@ -1,3 +1,9 @@
+import { useEffect, useState } from 'react'
+
+import {
+  cacheImage,
+  getCachedImageUrl,
+} from '../lib/loadedAttachmentCache'
 import {
   formatAttachmentSize,
   isImageAttachment,
@@ -23,6 +29,115 @@ function getFileTypeLabel(fileType: string, fileName: string) {
   }
 
   return 'FILE'
+}
+
+type ImageAttachmentProps = {
+  attachment: MessageAttachmentWithUrl
+  attachmentTextColor: string
+}
+
+function ImageAttachment({
+  attachment,
+  attachmentTextColor,
+}: ImageAttachmentProps) {
+  const [imageUrl, setImageUrl] = useState(() =>
+    getCachedImageUrl(attachment.id),
+  )
+
+  const [isLoading, setIsLoading] = useState(() =>
+    !getCachedImageUrl(attachment.id),
+  )
+
+  const [hasError, setHasError] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadImage() {
+      const cachedImageUrl = getCachedImageUrl(attachment.id)
+
+      if (cachedImageUrl) {
+        if (isMounted) {
+          setImageUrl(cachedImageUrl)
+          setIsLoading(false)
+        }
+
+        return
+      }
+
+      try {
+        setIsLoading(true)
+        setHasError(false)
+
+        const cachedUrl = await cacheImage(
+          attachment.id,
+          attachment.url!,
+        )
+
+        if (isMounted) {
+          setImageUrl(cachedUrl)
+        }
+      } catch {
+        if (isMounted) {
+          setHasError(true)
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadImage()
+
+    return () => {
+      isMounted = false
+    }
+  }, [attachment.id, attachment.url])
+
+  return (
+    <div className="overflow-hidden rounded-lg">
+      <a
+        href={attachment.url!}
+        target="_blank"
+        rel="noreferrer"
+        className="group block overflow-hidden rounded-lg border border-black/10 bg-black/5"
+        aria-label={`Open ${attachment.file_name}`}
+      >
+        {isLoading && (
+          <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+            Loading image...
+          </div>
+        )}
+
+        {hasError && (
+          <div className="flex h-48 items-center justify-center text-sm text-destructive">
+            Failed to load image.
+          </div>
+        )}
+
+        {imageUrl && !isLoading && !hasError && (
+          <img
+            src={imageUrl}
+            alt={attachment.file_name}
+            className="max-h-80 max-w-full object-contain transition group-hover:opacity-90"
+          />
+        )}
+      </a>
+
+      <div
+        className={`mt-1 flex min-w-0 items-center justify-between gap-2 text-xs ${attachmentTextColor}`}
+      >
+        <span className="min-w-0 truncate">
+          {attachment.file_name}
+        </span>
+
+        <span className="shrink-0">
+          {formatAttachmentSize(attachment.file_size)}
+        </span>
+      </div>
+    </div>
+  )
 }
 
 export function AttachmentList({
@@ -58,31 +173,11 @@ export function AttachmentList({
 
         if (isImage) {
           return (
-            <div key={attachment.id} className="overflow-hidden rounded-lg">
-              <a
-                href={attachment.url}
-                target="_blank"
-                rel="noreferrer"
-                className="group block overflow-hidden rounded-lg border border-black/10 bg-black/5"
-                aria-label={`Open ${attachment.file_name}`}
-              >
-                <img
-                  src={attachment.url}
-                  alt={attachment.file_name}
-                  className="max-h-80 max-w-full object-contain transition group-hover:opacity-90"
-                  loading="lazy"
-                />
-              </a>
-
-              <div
-                className={`mt-1 flex min-w-0 items-center justify-between gap-2 text-xs ${attachmentTextColor}`}
-              >
-                <span className="min-w-0 truncate">{attachment.file_name}</span>
-                <span className="shrink-0">
-                  {formatAttachmentSize(attachment.file_size)}
-                </span>
-              </div>
-            </div>
+            <ImageAttachment
+              key={attachment.id}
+              attachment={attachment}
+              attachmentTextColor={attachmentTextColor}
+            />
           )
         }
 
