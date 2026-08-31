@@ -1,3 +1,4 @@
+import tempoLogo from '@/assets/brand/tempo-logo.svg'
 import {
   Home,
   MessageSquareMore,
@@ -6,7 +7,6 @@ import {
   X,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
-import tempoLogo from '@/assets/brand/tempo-logo.svg'
 
 const navItems = [
   { to: '/app', label: 'Home', icon: Home },
@@ -36,16 +36,12 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
       {/* Desktop sidebar */}
       <aside className="hidden h-full w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-950 text-slate-100 lg:flex">
         <div className="border-b border-slate-800 px-6 py-5">
-          <div className="flex items-center gap-2">
-            <img src={tempoLogo} alt="Tempo" className="h-7 w-7 shrink-0" />
+          <div className="flex items-center gap-0">
+            <img src={tempoLogo} alt="Tempo" className="h-14 w-14 shrink-0" />
             <h2 className="text-xl font-semibold tracking-tight text-white">
               Tempo
             </h2>
           </div>
-
-          <p className="mt-1 text-sm text-slate-400">
-            Chat
-          </p>
         </div>
 
         <nav
@@ -83,16 +79,13 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
       >
         <div className="flex items-start justify-between border-b border-slate-800 px-5 py-5">
           <div>
-            <div className="flex items-center gap-2">
-              <img src={tempoLogo} alt="Tempo" className="h-7 w-7 shrink-0" />
+            <div className="flex items-center gap-0">
+              <img src={tempoLogo} alt="Tempo" className="h-14 w-14 shrink-0" />
               <h2 className="text-xl font-semibold tracking-tight text-white">
                 Tempo
               </h2>
             </div>
 
-            <p className="mt-1 text-sm text-slate-400">
-              Chat
-            </p>
           </div>
 
           <button
