@@ -6,7 +6,7 @@ export function RegisterPage() {
   return (
     <AuthCard>
       <AuthHeader
-        title="Create an account"
+        title="Create your account"
         description="Join Tempo and start collaborating."
       />
 

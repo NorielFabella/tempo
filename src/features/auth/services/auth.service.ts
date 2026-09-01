@@ -16,10 +16,21 @@ export async function signInWithGoogle() {
   })
 }
 
-export async function signUp(email: string, password: string) {
+export async function signUp(
+  email: string,
+  password: string,
+  fullName?: string,
+) {
   return supabase.auth.signUp({
     email,
     password,
+    options: fullName
+      ? {
+          data: {
+            full_name: fullName.trim(),
+          },
+        }
+      : undefined,
   })
 }
 

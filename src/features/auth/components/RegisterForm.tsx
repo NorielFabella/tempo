@@ -21,6 +21,7 @@ export function RegisterForm() {
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      fullName: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -30,10 +31,15 @@ export function RegisterForm() {
   const onSubmit: SubmitHandler<RegisterFormValues> = async (values) => {
     setErrorMessage(null)
 
-    const { error } = await signUp(values.email, values.password)
+    const { error } = await signUp(
+      values.email,
+      values.password,
+      values.fullName,
+    )
 
     if (error) {
       setErrorMessage(error.message)
+      return
     }
   }
 
@@ -43,6 +49,29 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={handleFormSubmit} style={{ display: 'grid', gap: '1rem' }}>
+      <div>
+        <label
+          htmlFor="fullName"
+          style={{ display: 'block', marginBottom: '0.35rem' }}
+        >
+          Full name
+        </label>
+
+        <Input
+          id="fullName"
+          type="text"
+          autoComplete="name"
+          placeholder="Jane Doe"
+          {...register('fullName')}
+        />
+
+        {errors.fullName && (
+          <p style={{ color: '#dc2626', marginTop: '0.35rem' }}>
+            {errors.fullName.message}
+          </p>
+        )}
+      </div>
+
       <div>
         <label
           htmlFor="email"
@@ -55,6 +84,7 @@ export function RegisterForm() {
           id="email"
           type="email"
           autoComplete="email"
+          placeholder="you@example.com"
           {...register('email')}
         />
 
@@ -88,7 +118,7 @@ export function RegisterForm() {
       </Button>
 
       <p>
-        <Link to="/login">Already have an account?</Link>
+        <Link to="/login">Already have an account? Sign in</Link>
       </p>
     </form>
   )

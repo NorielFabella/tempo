@@ -117,6 +117,13 @@ export function LoginForm() {
       <p>
         <Link to="/forgot-password">Forgot password?</Link>
       </p>
+
+      <p>
+        Don&apos;t have an account?{' '}
+        <Link to="/register" style={{ fontWeight: 500 }}>
+          Create one
+        </Link>
+      </p>
     </form>
   )
 }
