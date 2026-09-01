@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { useAuth } from '@/features/auth/hooks/useAuth'
+import { useChatActivity } from '@/features/messaging/activity/hooks/useChatActivity'
 import { AttachmentList } from '@/features/messaging/attachments/components/AttachmentList'
 import { useMessageAttachments } from '@/features/messaging/attachments/hooks/useMessageAttachments'
 import { useDeleteMessage } from '@/features/messaging/chat/hooks/useDeleteMessage'
@@ -92,6 +93,9 @@ export function ChatPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
+
+  useChatActivity()
+
   const userId = user?.id
   const {
     data: rooms,

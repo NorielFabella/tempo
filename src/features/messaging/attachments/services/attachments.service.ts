@@ -1,5 +1,5 @@
-import type { TablesInsert } from '@/shared/types/database'
 import { supabase } from '@/shared/supabase/client'
+import type { TablesInsert } from '@/shared/types/database'
 
 import type {
   MessageAttachment,
