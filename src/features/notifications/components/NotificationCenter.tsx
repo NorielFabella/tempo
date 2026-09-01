@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 import { Bell } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -31,6 +33,12 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
   const { data: actors = [] } = useProfiles(actorIds)
   const actorsById = new Map(actors.map((actor) => [actor.id, actor]))
   const unreadCount = unreadCountQuery.data ?? 0
+
+  useEffect(() => {
+    if (unreadCount > 0 && !markAllNotificationsReadMutation.isPending) {
+      void markAllNotificationsReadMutation.mutateAsync()
+    }
+  }, [unreadCount, markAllNotificationsReadMutation])
 
   const handleNotificationClick = (notification: (typeof notifications)[number]) => {
     onClose()
@@ -104,21 +112,6 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
           Notifications
         </h2>
 
-        {unreadCount > 0 && (
-          <Button
-            type="button"
-            variant="ghost"
-            className="px-2 py-1 text-xs"
-            onClick={() => {
-              void markAllNotificationsReadMutation.mutateAsync()
-            }}
-            disabled={markAllNotificationsReadMutation.isPending}
-          >
-            {markAllNotificationsReadMutation.isPending
-              ? 'Marking...'
-              : 'Mark all as read'}
-          </Button>
-        )}
       </div>
 
       {unreadCountQuery.isError && (
