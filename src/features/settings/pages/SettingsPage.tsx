@@ -1,8 +1,7 @@
-import { Check, LogOut, Monitor, Moon, Sun, User } from 'lucide-react'
+import { Check, LogOut, Monitor, Moon, Sun } from 'lucide-react'
 
 import { useTheme } from '@/app/providers/useTheme'
 import { signOut } from '@/features/auth/services/auth.service'
-import { useProfile } from '@/features/profile/hooks/useProfile'
 import { Button } from '@/shared/components/ui/Button'
 import { Card } from '@/shared/components/ui/Card'
 
@@ -28,7 +27,6 @@ const themeOptions = [
 ]
 
 export function SettingsPage() {
-  const { data: profile, isLoading: isProfileLoading } = useProfile()
   const { theme, setTheme } = useTheme()
 
   return (
@@ -104,65 +102,7 @@ export function SettingsPage() {
         </Card>
       </section>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-            Account
-          </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Your current Tempo account information.
-          </p>
-        </div>
 
-        <Card className="p-6">
-          {isProfileLoading ? (
-            <div className="space-y-4" aria-busy="true">
-              <div className="h-5 w-32 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-              <div className="h-10 w-full animate-pulse rounded-lg bg-slate-100 dark:bg-slate-900" />
-              <div className="h-5 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-              <div className="h-10 w-full animate-pulse rounded-lg bg-slate-100 dark:bg-slate-900" />
-              <span className="sr-only">Loading account information</span>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-                  <User className="h-6 w-6" />
-                </div>
-
-                <div className="min-w-0">
-                  <p className="font-semibold text-slate-900 dark:text-white">
-                    {profile?.full_name?.trim() || 'No name set'}
-                  </p>
-                  <p className="truncate text-sm text-slate-500 dark:text-slate-400">
-                    {profile?.email ?? 'Unknown email'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                    Full name
-                  </p>
-                  <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                    {profile?.full_name?.trim() || 'Not set'}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                    Email
-                  </p>
-                  <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                    {profile?.email ?? 'Unknown'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </Card>
-      </section>
 
       <section className="space-y-4">
         <div>

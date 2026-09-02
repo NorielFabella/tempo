@@ -117,7 +117,6 @@ Tempo is built as a frontend-first single-page application. Instead of using a c
 
 # 📸 Screenshots
 
-> Replace the placeholder image paths below with your actual screenshots.
 
 ## Authentication
 
@@ -126,10 +125,6 @@ Tempo is built as a frontend-first single-page application. Instead of using a c
 ## Chat Interface
 
 ![Chat Interface](./screenshots/chat.png)
-
-## Group Chat
-
-![Group Chat](./screenshots/group-chat.png)
 
 ## Notifications
 
@@ -142,6 +137,10 @@ Tempo is built as a frontend-first single-page application. Instead of using a c
 ## Settings
 
 ![Settings](./screenshots/settings.png)
+
+## Mobile
+
+![Mobile](./screenshots/mobile.png)
 
 ---
 
